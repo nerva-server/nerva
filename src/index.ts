@@ -1,9 +1,21 @@
 import { Server } from "@/core/server"
 
-const server = new Server()
+const server = new Server({
+    cluster: {
+        enabled: true,
+        workerThreads: 6
+    }
+})
+
+import fastJson from 'fast-json-stringify'
+
+const stringify = fastJson({
+  type: 'object',
+  properties: { data: { type: 'string' } }
+});
 
 server.get("/", (req, res) => {
-    res.end(JSON.stringify({m: "H"}))
+    res.end(stringify({m: "H"}))
 })
 
 server.start((port) => {

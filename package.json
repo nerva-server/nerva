@@ -12,6 +12,7 @@
   "packageManager": "pnpm@10.13.1",
   "dependencies": {
     "@types/node": "^24.1.0",
+    "fast-json-stringify": "^6.0.1",
     "http": "0.0.1-security",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"

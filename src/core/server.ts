@@ -1,4 +1,6 @@
+import http from 'http'
 import { createServer, IncomingMessage, ServerResponse } from 'http'
+import cluster from 'cluster'
 
 import { ServerConfig } from "@/types"
 
@@ -11,44 +13,57 @@ type Handler = (req: IncomingMessage, res: ServerResponse) => void
 
 export class Server {
     private config: ServerConfig
-    private server: ReturnType<typeof createServer>
+    private server!: ReturnType<typeof createServer>
 
     private routes: Record<string, Record<string, Handler>> = {}
 
     constructor(config?: Partial<ServerConfig>) {
-        this.server = createServer(this.requestListener.bind(this))
         this.config = deepMerge(DefaultServerConfig, config as ServerConfig)
 
         if (this.config.cluster?.enabled) {
             const threads = this.config.cluster.workerThreads
             initWorkers({ threads })
+
+            if (!cluster.isPrimary) {
+                this.server = createServer(this.requestListener.bind(this))
+            }
+        } else {
+            this.server = createServer(this.requestListener.bind(this))
         }
+
+        http.globalAgent.maxSockets = Infinity
     }
 
     private requestListener(req: IncomingMessage, res: ServerResponse) {
-        const method = req.method?.toUpperCase() || '';
-        const url = req.url?.split('?')[0] || '';
+        req.socket.setNoDelay(true)
+        
+        res.setHeader('Connection', 'keep-alive')
 
-        const route = this.routes[url];
+        const method = req.method?.toUpperCase() || ''
+        const url = req.url?.split('?', 1)[0] || ''
+
+        const route = this.routes[url]
         if (route && route[method]) {
-            return route[method](req, res);
+            return route[method](req, res)
         }
 
-        res.statusCode = 404;
-        res.end(`404`);
+        res.statusCode = 404
+        res.end(`404`)
     }
 
     private addRoute(method: string, path: string, handler: Handler) {
         if (!this.routes[path]) {
-            this.routes[path] = {};
+            this.routes[path] = {}
         }
-        this.routes[path][method.toUpperCase()] = handler;
+        this.routes[path][method.toUpperCase()] = handler
     }
 
     start(listener?: (port: number) => void) {
-        this.server.listen(this.config.port, this.config.backlog, () => {
-            if (listener) listener(this.config.port as number)
-        })
+        if (!this.config.cluster?.enabled || !cluster.isPrimary) {
+            this.server.listen(this.config.port, this.config.backlog, () => {
+                if (listener) listener(this.config.port as number)
+            })
+        }
     }
 
     get(path: string, handler: Handler) {

@@ -1,0 +1,19 @@
+{
+  "name": "nerva",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.13.1",
+  "dependencies": {
+    "@types/node": "^24.1.0",
+    "http": "0.0.1-security",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,4 +1,4 @@
-import { Server } from "@/core/server"
+import { Server } from "./core/server"
 
 const server = new Server({
     cluster: {
@@ -7,15 +7,8 @@ const server = new Server({
     }
 })
 
-import fastJson from 'fast-json-stringify'
-
-const stringify = fastJson({
-  type: 'object',
-  properties: { data: { type: 'string' } }
-});
-
 server.get("/", (req, res) => {
-    res.end(stringify({m: "H"}))
+    res.end(JSON.stringify({m: "H"}))
 })
 
 server.start((port) => {

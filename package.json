@@ -4,6 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "npm run clean && npm run build:cjs && npm run build:esm && npm run build:types",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node scripts/fix-paths.js dist",
+    "build:esm": "tsc -p tsconfig.esm.json && node scripts/fix-paths.js dist/esm && node scripts/fix-esm.js",
+    "build:types": "tsc -p tsconfig.types.json",
+    "clean": "rimraf dist",
     "dev": "tsx watch src/index.ts"
   },
   "keywords": [],
@@ -14,6 +19,7 @@
     "@types/node": "^24.1.0",
     "fast-json-stringify": "^6.0.1",
     "http": "0.0.1-security",
+    "rimraf": "^6.0.1",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }

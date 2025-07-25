@@ -1,6 +1,6 @@
 import cluster from 'cluster'
 
-import { getCpus } from "@/utils/cpu"
+import { getCpus } from "../utils/cpu"
 
 export function initWorkers({ threads }: { threads?: number }) {
     if (cluster.isPrimary) {

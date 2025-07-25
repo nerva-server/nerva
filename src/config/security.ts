@@ -1,4 +1,4 @@
-import { ServerConfig } from "@/types"
+import { ServerConfig } from "../interfaces"
 
 export const DefaultServerConfig: ServerConfig = {
     port: 3000,

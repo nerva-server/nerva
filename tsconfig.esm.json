@@ -1,0 +1,20 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ES2022",
+        "outDir": "./dist/esm",
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "moduleResolution": "node",
+        "baseUrl": "./src",
+        "paths": {}
+    },
+    "exclude": [
+        "**/*.test.ts",
+        "**/*.spec.ts",
+        "examples/**/*",
+        "benchmarks/**/*"
+    ]
+}

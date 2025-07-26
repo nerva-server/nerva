@@ -1,0 +1,1 @@
+cmd_Release/obj.target/buffer.node := g++ -o Release/obj.target/buffer.node -shared -pthread -rdynamic -m64  -Wl,-soname=buffer.node -Wl,--start-group Release/obj.target/buffer/native/buffer.o -Wl,--end-group 

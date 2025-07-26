@@ -33,16 +33,18 @@ export class HttpResponse {
         }
     }
 
-    end(body?: string) {
+    end(body?: string, statusCode?: number) {
         if (body !== undefined) {
             this.body = body
         }
+
+        const statusMessage = statusCode ? this.getStatusText(statusCode) : this.statusMessage
 
         this.headers['content-length'] = Buffer.byteLength(this.body)
         this.headers['connection'] = this.keepAlive ? 'keep-alive' : 'close'
 
         const resBuffer = new HTTPServer()
-        resBuffer.addString(`HTTP/1.1 ${this.statusCode} ${this.statusMessage}\r\n`)
+        resBuffer.addString(`HTTP/1.1 ${statusCode ? statusCode : this.statusCode} ${statusMessage}\r\n`)
 
         for (const [k, v] of Object.entries(this.headers)) {
             resBuffer.addString(`${k}: ${v}\r\n`)
@@ -56,5 +58,33 @@ export class HttpResponse {
         } catch (e) {
 
         }
+    }
+
+    private getStatusText(statusCode: number) {
+        return {   
+            200: "OK",
+            404: "Not Found",
+            502: "Internal Server Error"
+        }[statusCode] || "Undefined"
+    }
+
+    status(statusCode: number) {
+        const responseRoute = new FluentResponse(this, statusCode)
+        return responseRoute
+    }
+}
+
+class FluentResponse {
+    res: HttpResponse
+    
+    statusCode: number
+
+    constructor (res: HttpResponse, statusCode: number) {
+        this.res = res
+        this.statusCode = statusCode
+    }
+
+    send(object: any) {
+        this.res.end()
     }
 }

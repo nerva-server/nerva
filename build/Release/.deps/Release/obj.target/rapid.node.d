@@ -1,0 +1,1 @@
+cmd_Release/obj.target/rapid.node := g++ -o Release/obj.target/rapid.node -shared -pthread -rdynamic -m64  -Wl,-soname=rapid.node -Wl,--start-group Release/obj.target/rapid/native/rapid/rapidjson.o -Wl,--end-group 

@@ -9,9 +9,7 @@ const Http = addon.Http
 
 process.setMaxListeners(0)
 
-export function createServer({
-
-}: {}) {
+export function createServer() {
     const server = new Server()
 
     return server
@@ -80,17 +78,11 @@ class Server {
             }
 
             this.http.consume(totalLength)
-
-            if (!keepAlive) {
-                socket.end()
-                break
-            }
         }
     }
 
     private handleClose(socket: Socket) {
         this.sockets.delete(socket)
-        this.http = null
     }
 
     private handleError(err: Error, socket: Socket) {
@@ -133,7 +125,11 @@ class Server {
     }
 
     listen(port?: number, backlog?: number, listener?: () => void) {
-        this.server.listen(port, "0.0.0.0", backlog, listener)
+        this.server.listen({
+            port, 
+            host: "0.0.0.0", 
+            backlog,
+        }, listener)
         return this
     }
 }

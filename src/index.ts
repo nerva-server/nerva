@@ -14,4 +14,6 @@ server.get("/", (req, res) => {
     res.end(stringify({ message: 'Hello World' }))
 })
 
-server.start()
+server.start((port) => {
+    console.log(`Server is Running On ${port}`)
+})

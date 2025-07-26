@@ -8,8 +8,8 @@ import HTTPServer from "../native/HTTPServer"
 
 process.setMaxListeners(0)
 
-export function createServer() {
-    const server = new Server()
+export function createServer(router: Router) {
+    const server = new Server(router)
 
     return server
 }
@@ -21,10 +21,10 @@ class Server {
 
     public router: Router
 
-    constructor() {
+    constructor(router: Router) {
         this.http = new HTTPServer()
         this.sockets = new Set()
-        this.router = new Router()
+        this.router = router
 
         this.server = net.createServer((socket) => {
             this.setupSocket(socket)

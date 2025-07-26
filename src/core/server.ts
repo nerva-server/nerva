@@ -5,18 +5,20 @@ import os from "os"
 import { DefaultServerConfig } from '../config/security'
 import { deepMerge } from '../utils/object'
 import { createServer } from '../http/http'
+import { Router } from '@/http/router'
 
-export class Server {
+export class Server extends Router {
     private config: ServerConfig
     private server!: ReturnType<typeof createServer>
 
     constructor(config?: Partial<ServerConfig>) {
+        super()
         this.config = deepMerge(DefaultServerConfig, config as ServerConfig)
 
         if (this.config.cluster?.enabled && cluster.isPrimary) {
             this.setupCluster()
         } else {
-            this.server = createServer()
+            this.server = createServer(this)
         }
     }
 
@@ -56,11 +58,5 @@ export class Server {
                 }
             }
         )
-    }
-
-    get(path: string, handler: Handler) {
-        if (this.server) {
-            this.server.router.get(path, handler)
-        }
-    }
+    }    
 }

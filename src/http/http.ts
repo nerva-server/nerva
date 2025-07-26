@@ -21,7 +21,8 @@ class Server {
     private server: NetServer
     private sockets: Set<Socket>
     private http: any
-    private router: Router
+
+    public router: Router
 
     constructor() {
         this.http = new Http()
@@ -98,7 +99,7 @@ class Server {
         if (
             msg?.includes('econnreset') ||
             msg?.includes('epipe') ||
-            msg?.includes('client hang up')
+            msg?.includes('client hang up') 
         ) {
         } else {
             console.error('Socket error:', err);
@@ -131,7 +132,7 @@ class Server {
         return { method, url, headers, headerEnd }
     }
 
-    listen({ port, backlog, listener }: { port?: number, backlog?: number, listener?: () => void }) {
+    listen(port?: number, backlog?: number, listener?: () => void) {
         this.server.listen(port, "0.0.0.0", backlog, listener)
         return this
     }

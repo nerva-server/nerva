@@ -1,5 +1,3 @@
-import http from 'http'
-import { createServer, IncomingMessage, ServerResponse } from 'http'
 import cluster from 'cluster'
 
 import { ServerConfig } from "../interfaces"
@@ -12,6 +10,7 @@ import { DefaultServerConfig } from '../config/security'
 import { deepMerge } from '../utils/object'
 
 import { RadixRouter } from '../core/radix'
+import { createServer } from '../http/http'
 
 export class Server {
     private config: ServerConfig
@@ -27,65 +26,25 @@ export class Server {
             initWorkers({ threads })
 
             if (!cluster.isPrimary) {
-                this.server = createServer(this.requestListener.bind(this))
-                this.server.keepAliveTimeout = 60_000
-                this.server.headersTimeout = 65_000
+                this.server = createServer({})
             }
         } else {
-            this.server = createServer(this.requestListener.bind(this))
-            this.server.keepAliveTimeout = 60_000
-            this.server.headersTimeout = 65_000
+            this.server = createServer({})
         }
-
-        http.globalAgent.maxSockets = Infinity
-    }
-
-    private requestListener(req: IncomingMessage, res: ServerResponse) {
-        req.socket.setNoDelay(true)
-        res.setHeader('Connection', 'keep-alive')
-
-        const method = methodMap[req.method as string] ?? req.method
-
-        if (method === 'HEAD') {
-            res.writeHead(200, {
-                'Content-Length': 0
-            })
-            res.end()
-            return
-        }
-
-        const rawUrl = req.url!
-        const qIndex = rawUrl.indexOf('?')
-        const url = qIndex === -1 ? rawUrl : rawUrl.slice(0, qIndex)
-
-        const handler = this.router.findHandler(method, url)
-
-        if (handler) {
-            handler(req, res)
-            return
-        }
-
-        res.statusCode = 404
-        res.end(`404`)
-    }
-
-    addRoute(method: string, path: string, handler: Handler) {
-        this.router.addRoute(method, path, handler)
     }
 
     start(listener?: (port: number) => void) {
         if (!this.config.cluster?.enabled || !cluster.isPrimary) {
-            this.server.listen({
-                port: this.config.port,
-                backlog: this.config.backlog,
-                exclusive: false
-            }, () => {
-                if (listener) listener(this.config.port as number)
-            })
+            this.server.listen(
+                this.config.port,
+                this.config.backlog,
+                () => {
+                    if (listener) listener(this.config.port as number)
+                })
         }
     }
 
     get(path: string, handler: Handler) {
-        this.addRoute("GET", path, handler)
+        this.server.router.get(path, handler)
     }
 }

@@ -52,10 +52,10 @@ export class HttpResponse {
         resBuffer.addString('\r\n')
         resBuffer.addString(this.body)
 
-        resBuffer.writeToFd(this.fd)
+        try {
+            resBuffer.writeToFd(this.fd)
+        } catch (e) {
 
-        if (!this.keepAlive) {
-            this.socket.end()
         }
     }
 }

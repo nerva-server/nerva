@@ -4,8 +4,7 @@ import { Router } from "./router"
 import { HttpRequest } from "./request"
 import { HttpResponse } from "./response"
 
-import addon from "../../build/Release/http.node"
-const Http = addon.Http
+import HTTPServer from "../native/HTTPServer"
 
 process.setMaxListeners(0)
 
@@ -23,7 +22,7 @@ class Server {
     public router: Router
 
     constructor() {
-        this.http = new Http()
+        this.http = new HTTPServer()
         this.sockets = new Set()
         this.router = new Router()
 

@@ -1,7 +1,6 @@
 import { Socket } from "net"
-import addon from "../../build/Release/http.node"
 
-const Http = addon.Http
+import HTTPServer from "../native/HTTPServer"
 
 export class HttpResponse {
     statusCode: number
@@ -42,7 +41,7 @@ export class HttpResponse {
         this.headers['content-length'] = Buffer.byteLength(this.body)
         this.headers['connection'] = this.keepAlive ? 'keep-alive' : 'close'
 
-        const resBuffer = new Http()
+        const resBuffer = new HTTPServer()
         resBuffer.addString(`HTTP/1.1 ${this.statusCode} ${this.statusMessage}\r\n`)
 
         for (const [k, v] of Object.entries(this.headers)) {

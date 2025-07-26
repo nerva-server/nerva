@@ -1,6 +1,6 @@
-import { Server } from "./core/server";
+import { Server } from "./core/server"
 
-import RapidJson from "../build/Release/rapid.node"
+import { stringify, parse } from "./native/RapidJson"
 
 const server = new Server({
     port: 3000,
@@ -11,7 +11,7 @@ const server = new Server({
 })
 
 server.get("/", (req, res) => {
-    res.end(RapidJson.stringify({ message: 'Hello World' }))
+    res.end(stringify({ message: 'Hello World' }))
 })
 
 server.start()

@@ -1,0 +1,23 @@
+#ifndef ROUTER_HPP
+#define ROUTER_HPP
+
+#include <string>
+#include <functional>
+#include <map>
+
+class Router
+{
+public:
+    using RequestHandler = std::function<std::string(const std::string &requestPath)>;
+
+    Router();
+
+    void addRoute(const std::string &path, RequestHandler handler);
+
+    std::string dispatch(const std::string &requestPath) const;
+
+private:
+    std::map<std::string, RequestHandler> routes;
+};
+
+#endif

@@ -1,1 +1,0 @@
-cmd_Release/cluster.node := ln -f "Release/obj.target/cluster.node" "Release/cluster.node" 2>/dev/null || (rm -rf "Release/cluster.node" && cp -af "Release/obj.target/cluster.node" "Release/cluster.node")

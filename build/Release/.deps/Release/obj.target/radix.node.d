@@ -1,1 +1,0 @@
-cmd_Release/obj.target/radix.node := g++ -o Release/obj.target/radix.node -shared -pthread -rdynamic -m64  -Wl,-soname=radix.node -Wl,--start-group Release/obj.target/radix/native/radix/radix.o -Wl,--end-group 

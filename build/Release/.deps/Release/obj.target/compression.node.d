@@ -1,1 +1,0 @@
-cmd_Release/obj.target/compression.node := g++ -o Release/obj.target/compression.node -shared -pthread -rdynamic -m64  -Wl,-soname=compression.node -Wl,--start-group Release/obj.target/compression/native/compression/compression.o -Wl,--end-group 

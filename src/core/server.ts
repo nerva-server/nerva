@@ -113,12 +113,17 @@ export class Server extends Router {
         if (cluster.isWorker) {
             setInterval(() => {
                 const load = process.memoryUsage().heapUsed / process.memoryUsage().heapTotal;
-                process.send?.({
-                    type: 'loadUpdate',
-                    load: load,
-                    workerId: cluster.worker?.id,
-                    timestamp: Date.now()
-                });
+                if (process.send && process.connected) {
+                    try {
+                        process.send({
+                            type: 'loadUpdate',
+                            load,
+                            workerId: cluster.worker?.id,
+                            timestamp: Date.now()
+                        });
+                    } catch (err) {
+                    }
+                }
             }, 5000);
         }
     }

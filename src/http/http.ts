@@ -40,7 +40,7 @@ class Server {
 
     private setupSocket(socket: Socket) {
         socket.setNoDelay(true)
-        socket.setKeepAlive(true, 60000)
+        socket.setKeepAlive(true, 70000)
         socket.setTimeout(0)
 
         const fd = (socket as any)._handle.fd

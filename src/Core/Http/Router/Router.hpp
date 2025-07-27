@@ -5,6 +5,8 @@
 #include <functional>
 #include <map>
 
+#include "Utils/Handlers.hpp"
+
 class Router
 {
 public:

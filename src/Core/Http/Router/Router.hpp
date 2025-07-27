@@ -8,8 +8,6 @@
 class Router
 {
 public:
-    using RequestHandler = std::function<std::string(const std::string &requestPath)>;
-
     Router();
 
     void addRoute(const std::string &path, RequestHandler handler);

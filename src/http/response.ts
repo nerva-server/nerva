@@ -1,12 +1,14 @@
 import { Socket } from "net"
 
 import HTTPServer from "../native/HTTPServer"
+import { stringify } from "@/native/RapidJson"
 
 export class HttpResponse {
     statusCode: number
     statusMessage: string
     headers: Record<string, string | number>
     body: string
+    
     private socket: Socket
     private fd: number
     private keepAlive: boolean
@@ -61,7 +63,7 @@ export class HttpResponse {
     }
 
     private getStatusText(statusCode: number) {
-        return {   
+        return {
             200: "OK",
             404: "Not Found",
             502: "Internal Server Error"
@@ -76,15 +78,23 @@ export class HttpResponse {
 
 class FluentResponse {
     res: HttpResponse
-    
+
     statusCode: number
 
-    constructor (res: HttpResponse, statusCode: number) {
+    constructor(res: HttpResponse, statusCode: number) {
         this.res = res
         this.statusCode = statusCode
     }
 
     send(object: any) {
-        this.res.end()
+        let data: string;
+
+        if (typeof object === 'object' && object !== null) {
+            data = stringify(object);
+        } else {
+            data = String(object);
+        }
+
+        this.res.end(data);
     }
 }

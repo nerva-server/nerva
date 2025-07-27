@@ -1,4 +1,4 @@
-import { RadixRouter } from "../core/radix"
+import { RadixRouter } from "@/native/Radix"
 import { HttpRequest } from "./request"
 import { HttpResponse } from "./response"
 
@@ -26,6 +26,7 @@ export class Router {
     }
 
     findHandler(method: string, path: string) {
-        return this.radixRouter.findHandler(method, path)
+        const handler = this.radixRouter.findHandler(method, path)
+        return handler
     }
 }

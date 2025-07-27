@@ -26,7 +26,14 @@ class Server {
         this.sockets = new Set()
         this.router = router
 
-        this.server = net.createServer((socket) => {
+        this.server = net.createServer({
+            allowHalfOpen: false,
+            pauseOnConnect: false,
+            noDelay: true,
+            keepAlive: true,
+            keepAliveInitialDelay: 60000,
+            highWaterMark: 1024 * 1024,
+        }, (socket) => {
             this.setupSocket(socket)
         })
     }
@@ -34,6 +41,7 @@ class Server {
     private setupSocket(socket: Socket) {
         socket.setNoDelay(true)
         socket.setKeepAlive(true, 60000)
+        socket.setTimeout(0)
 
         const fd = (socket as any)._handle.fd
         this.sockets.add(socket)
@@ -44,39 +52,39 @@ class Server {
     }
 
     private handleData(chunk: Buffer, socket: Socket, fd: number) {
-        this.http.addBuffer(chunk)
+        this.http.addBuffer(chunk);
 
         while (true) {
-            const req = this.parseHeaders()
-            if (!req) break
+            const req = this.http.parseHeaders()
+            if (!req) break;
 
-            const contentLength = parseInt(req.headers['content-length'] || '0', 10)
-            const totalLength = req.headerEnd + contentLength
+            const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+            const totalLength = req.headerEnd + contentLength;
 
             const body = contentLength > 0
                 ? this.http.getSlice(req.headerEnd, totalLength)
-                : null
+                : null;
 
             const httpRequest = new HttpRequest(
                 req.method,
                 req.url,
                 req.headers,
                 body
-            )
+            );
 
-            const keepAlive = req.headers['connection']?.toLowerCase() === 'keep-alive'
-            const httpResponse = new HttpResponse(socket, fd, keepAlive)
+            const keepAlive = req.headers['connection']?.toLowerCase() === 'keep-alive';
+            const httpResponse = new HttpResponse(socket, fd, keepAlive);
 
-            const handler = this.router.findHandler(httpRequest.method, httpRequest.url)
+            const handler = this.router.findHandler(httpRequest.method, httpRequest.url);
 
             if (handler) {
-                handler(httpRequest, httpResponse)
+                handler(httpRequest, httpResponse);
             } else {
-                httpResponse.writeHead(404, 'Not Found')
-                httpResponse.end('Not Found')
+                httpResponse.writeHead(404, 'Not Found');
+                httpResponse.end('Not Found');
             }
 
-            this.http.consume(totalLength)
+            this.http.consume(totalLength);
         }
     }
 
@@ -90,7 +98,7 @@ class Server {
         if (
             msg?.includes('econnreset') ||
             msg?.includes('epipe') ||
-            msg?.includes('client hang up') 
+            msg?.includes('client hang up')
         ) {
         } else {
             console.error('Socket error:', err);
@@ -99,34 +107,10 @@ class Server {
         socket.destroy();
     }
 
-    private parseHeaders() {
-        const headerEnd = this.http.findHeaderEnd()
-        if (headerEnd === -1) return null
-
-        const headerBuffer = this.http.getSlice(0, headerEnd)
-        const headerString = headerBuffer.toString('ascii')
-
-        const lines = headerString.split('\r\n')
-        const [method, url] = lines[0].split(' ')
-        const headers: Record<string, string> = {}
-
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i]
-            if (!line) continue
-            const idx = line.indexOf(':')
-            if (idx === -1) continue
-            const key = line.slice(0, idx).trim().toLowerCase()
-            const val = line.slice(idx + 1).trim()
-            headers[key] = val
-        }
-
-        return { method, url, headers, headerEnd }
-    }
-
     listen(port?: number, backlog?: number, listener?: () => void) {
         this.server.listen({
-            port, 
-            host: "0.0.0.0", 
+            port,
+            host: "127.0.0.1",
             backlog,
         }, listener)
         return this

@@ -11,7 +11,7 @@ const server = new Server({
 })
 
 server.get("/", (req, res) => {
-    res.end(stringify({ message: 'Hello World' }))
+    res.status(200).send({ message: "Hello World" })
 })
 
 server.start((port) => {

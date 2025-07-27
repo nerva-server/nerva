@@ -28,6 +28,8 @@ public:
 
   Napi::Value GetSlice(const Napi::CallbackInfo& info);
 
+  Napi::Value ParseHeaders(const Napi::CallbackInfo& info);
+
 private:
   std::string concatAllData();
 };
@@ -42,6 +44,7 @@ Napi::Object Http::Init(Napi::Env env, Napi::Object exports) {
     InstanceMethod("getSlice", &Http::GetSlice),
     InstanceMethod("getBodyString", &Http::GetBodyString),
     InstanceMethod("getHeaderString", &Http::GetHeaderString),
+    InstanceMethod("parseHeaders", &Http::ParseHeaders),
   });
 
   exports.Set("Http", func);
@@ -57,7 +60,7 @@ Http::Http(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Http>(info) {
 Napi::Value Http::AddString(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   if (info.Length() < 1 || !info[0].IsString()) {
-    Napi::TypeError::New(env, "String gerekiyor").ThrowAsJavaScriptException();
+    Napi::TypeError::New(env, "String Excepted").ThrowAsJavaScriptException();
     return env.Null();
   }
   std::string str = info[0].As<Napi::String>().Utf8Value();
@@ -75,7 +78,7 @@ Napi::Value Http::AddString(const Napi::CallbackInfo& info) {
 Napi::Value Http::AddBuffer(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   if (info.Length() < 1 || !info[0].IsBuffer()) {
-    Napi::TypeError::New(env, "Buffer gerekiyor").ThrowAsJavaScriptException();
+    Napi::TypeError::New(env, "Buffer Excepted").ThrowAsJavaScriptException();
     return env.Null();
   }
   Napi::Buffer<char> buf = info[0].As<Napi::Buffer<char>>();
@@ -91,7 +94,7 @@ Napi::Value Http::WriteToFd(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   if (fd_ == -1) {
     if (info.Length() < 1 || !info[0].IsNumber()) {
-      Napi::TypeError::New(env, "File descriptor gerekli").ThrowAsJavaScriptException();
+      Napi::TypeError::New(env, "File descriptor Excepted").ThrowAsJavaScriptException();
       return env.Null();
     }
     fd_ = info[0].As<Napi::Number>().Int32Value();
@@ -217,6 +220,78 @@ Napi::Value Http::GetBodyString(const Napi::CallbackInfo& info) {
 
   std::string body = data.substr(pos + needle.size());
   return Napi::String::New(env, body);
+}
+
+Napi::Value Http::ParseHeaders(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+
+  std::string data = concatAllData();
+  size_t headerEnd = data.find("\r\n\r\n");
+  
+  if (headerEnd == std::string::npos) {
+    return env.Null();
+  }
+
+  std::string headerString = data.substr(0, headerEnd);
+  std::vector<std::string> lines;
+  size_t lineStart = 0;
+  size_t lineEnd = headerString.find("\r\n");
+
+  while (lineEnd != std::string::npos) {
+    lines.push_back(headerString.substr(lineStart, lineEnd - lineStart));
+    lineStart = lineEnd + 2;
+    lineEnd = headerString.find("\r\n", lineStart);
+  }
+
+  if (lines.empty()) {
+    return env.Null();
+  }
+
+  size_t firstSpace = lines[0].find(' ');
+  size_t secondSpace = lines[0].find(' ', firstSpace + 1);
+  
+  if (firstSpace == std::string::npos || secondSpace == std::string::npos) {
+    return env.Null();
+  }
+
+  std::string method = lines[0].substr(0, firstSpace);
+  std::string url = lines[0].substr(firstSpace + 1, secondSpace - firstSpace - 1);
+
+  Napi::Object headers = Napi::Object::New(env);
+
+  for (size_t i = 1; i < lines.size(); i++) {
+    const std::string& line = lines[i];
+    if (line.empty()) continue;
+
+    size_t colonPos = line.find(':');
+    if (colonPos == std::string::npos) continue;
+
+    std::string key = line.substr(0, colonPos);
+    size_t keyStart = key.find_first_not_of(" \t");
+    if (keyStart == std::string::npos) continue;
+    size_t keyEnd = key.find_last_not_of(" \t");
+    key = key.substr(keyStart, keyEnd - keyStart + 1);
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+
+    std::string value = line.substr(colonPos + 1);
+    size_t valStart = value.find_first_not_of(" \t");
+    if (valStart != std::string::npos) {
+      size_t valEnd = value.find_last_not_of(" \t");
+      value = value.substr(valStart, valEnd - valStart + 1);
+    } else {
+      value = "";
+    }
+
+    headers.Set(Napi::String::New(env, key), Napi::String::New(env, value));
+  }
+
+  Napi::Object result = Napi::Object::New(env);
+  result.Set("method", Napi::String::New(env, method));
+  result.Set("url", Napi::String::New(env, url));
+  result.Set("headers", headers);
+  result.Set("headerEnd", Napi::Number::New(env, headerEnd + 4));
+
+  return result;
 }
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {

@@ -9,8 +9,9 @@
 
 #include "Utils/ThreadSafeQueue.hpp"
 #include "Secure/Config/ServerConfig.hpp"
+#include "Core/Http/Router/Router.hpp"
 
-class Server
+class Server : public Router
 {
 public:
     Server(int serverSocket, std::atomic<bool> &shutdownFlag);
@@ -18,6 +19,11 @@ public:
 
     void startWorker();
     void stopWorker();
+
+    void get(const std::string &path, RequestHandler handler)
+    {
+        addRoute(path, handler);
+    }
 
     static int initSocket(int port, int listenQueueSize);
 

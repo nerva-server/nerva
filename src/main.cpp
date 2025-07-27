@@ -5,6 +5,11 @@
 #include <csignal>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <netinet/in.h>
+#include <fcntl.h>
+#include <cstring>
+#include <system_error>
+#include <sstream>
 
 #include "Secure/Config/ServerConfig.hpp"
 #include "Core/Cluster/Cluster.hpp"
@@ -46,8 +51,17 @@ int main()
     {
         Server workerServer(serverSocket, shutdownServer);
 
-        workerServer.get("/", [](const std::string &requestPath)
-                         { return "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK"; });
+        std::string body = "<h1>Hello World</h1>";
+        std::ostringstream response;
+        response << "HTTP/1.1 200 OK\r\n"
+                 << "Content-Type: text/html\r\n"
+                 << "Content-Length: " << body.size() << "\r\n"
+                 << "\r\n"
+                 << body;
+
+        workerServer.get("/", [&response](const std::string &requestPath) {
+            return response.str();
+        });
 
         workerServer.startWorker();
 

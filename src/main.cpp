@@ -46,6 +46,11 @@ int main()
     {
         Server workerServer(serverSocket, shutdownServer);
         workerServer.startWorker();
+
+        workerServer.get("/", [](const std::string &requestPath) {
+            return "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK";
+        });
+
         close(serverSocket);
         exit(0);            
     }

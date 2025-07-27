@@ -1,5 +1,4 @@
 #include "Server.hpp"
-#include "Utils/Handlers.hpp"
 #include "Secure/Config/ServerConfig.hpp"
 
 #include <iostream>
@@ -120,7 +119,20 @@ void Server::handleClient(int clientSocket)
     ServerConfig config;
     activeConnections++;
     char buffer[config.BUFFER_SIZE];
-    const std::string &response = getCachedResponse(config.KEEP_ALIVE_TIMEOUT);
+
+    std::string body =
+        "<html><body><h1>Merhaba Dunya!</h1>"
+        "<p>Bu son derece optimize C++ web sunucusudur.</p></body></html>";
+    std::string headers =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html; charset=UTF-8\r\n"
+        "Content-Length: " +
+        std::to_string(body.size()) + "\r\n"
+                                      "Connection: keep-alive\r\n"
+                                      "Keep-Alive: timeout=" +
+        std::to_string(config.KEEP_ALIVE_TIMEOUT) + "\r\n"
+                                                    "\r\n";
+    std::string response = headers + body;
 
     try
     {

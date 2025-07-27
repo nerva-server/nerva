@@ -1,0 +1,1 @@
+cmd_Release/obj.target/cluster.node := g++ -o Release/obj.target/cluster.node -shared -pthread -rdynamic -m64  -Wl,-soname=cluster.node -Wl,--start-group Release/obj.target/cluster/native/cluster/cluster.o -Wl,--end-group 

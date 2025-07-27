@@ -333,6 +333,11 @@ $(obj).$(TOOLSET)/%.o: $(obj)/%.S FORCE_DO_CMD
 
 ifeq ($(strip $(foreach prefix,$(NO_LOAD),\
     $(findstring $(join ^,$(prefix)),\
+                 $(join ^,cluster.target.mk)))),)
+  include cluster.target.mk
+endif
+ifeq ($(strip $(foreach prefix,$(NO_LOAD),\
+    $(findstring $(join ^,$(prefix)),\
                  $(join ^,http.target.mk)))),)
   include http.target.mk
 endif
@@ -349,7 +354,7 @@ endif
 
 quiet_cmd_regen_makefile = ACTION Regenerating $@
 cmd_regen_makefile = cd $(srcdir); /usr/lib/node_modules/node-gyp/gyp/gyp_main.py -fmake --ignore-environment "-Dlibrary=shared_library" "-Dvisibility=default" "-Dnode_root_dir=/home/wyrex/.cache/node-gyp/24.4.1" "-Dnode_gyp_dir=/usr/lib/node_modules/node-gyp" "-Dnode_lib_file=/home/wyrex/.cache/node-gyp/24.4.1/<(target_arch)/node.lib" "-Dmodule_root_dir=/run/media/wyrex/Yeni Birim/NervaA" "-Dnode_engine=v8" "--depth=." "-Goutput_dir=." "--generator-output=build" "-I/run/media/wyrex/Yeni Birim/NervaA/build/config.gypi" -I/usr/lib/node_modules/node-gyp/addon.gypi -I/home/wyrex/.cache/node-gyp/24.4.1/include/node/common.gypi "--toplevel-dir=." binding.gyp
-Makefile: $(srcdir)/../../../../../usr/lib/node_modules/node-gyp/addon.gypi $(srcdir)/build/config.gypi $(srcdir)/binding.gyp $(srcdir)/../../../../../home/wyrex/.cache/node-gyp/24.4.1/include/node/common.gypi
+Makefile: $(srcdir)/../../../../../usr/lib/node_modules/node-gyp/addon.gypi $(srcdir)/../../../../../home/wyrex/.cache/node-gyp/24.4.1/include/node/common.gypi $(srcdir)/binding.gyp $(srcdir)/build/config.gypi
 	$(call do_cmd,regen_makefile)
 
 # "all" is a concatenation of the "all" targets from all the included

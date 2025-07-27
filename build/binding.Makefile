@@ -3,4 +3,4 @@
 export builddir_name ?= ./build/.
 .PHONY: all
 all:
-	$(MAKE) rapid radix http
+	$(MAKE) rapid radix http cluster

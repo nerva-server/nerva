@@ -45,14 +45,14 @@ int main()
     if (workers.empty() && getpid() != getppid())
     {
         Server workerServer(serverSocket, shutdownServer);
+
+        workerServer.get("/", [](const std::string &requestPath)
+                         { return "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK"; });
+
         workerServer.startWorker();
 
-        workerServer.get("/", [](const std::string &requestPath) {
-            return "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK";
-        });
-
         close(serverSocket);
-        exit(0);            
+        exit(0);
     }
     else
     {

@@ -120,19 +120,7 @@ void Server::handleClient(int clientSocket)
     activeConnections++;
     char buffer[config.BUFFER_SIZE];
 
-    std::string body =
-        "<html><body><h1>Merhaba Dunya!</h1>"
-        "<p>Bu son derece optimize C++ web sunucusudur.</p></body></html>";
-    std::string headers =
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html; charset=UTF-8\r\n"
-        "Content-Length: " +
-        std::to_string(body.size()) + "\r\n"
-                                      "Connection: keep-alive\r\n"
-                                      "Keep-Alive: timeout=" +
-        std::to_string(config.KEEP_ALIVE_TIMEOUT) + "\r\n"
-                                                    "\r\n";
-    std::string response = headers + body;
+    std::string response = dispatch("/");
 
     try
     {

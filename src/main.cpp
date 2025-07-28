@@ -38,7 +38,7 @@ int main()
 
     std::cout << "Sunucu " << config.PORT << " portunda dinleniyor...\n";
 
-    int cpuCount = 12;
+    int cpuCount = 6;
     if (cpuCount == 0)
         cpuCount = 4;
 

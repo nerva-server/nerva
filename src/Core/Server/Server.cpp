@@ -60,29 +60,34 @@ int Server::initSocket(int port, int listenQueueSize)
     }
 
     int opt = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))
+    {
         perror("setsockopt(SO_REUSEADDR)");
         close(sock);
         return -1;
     }
 
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) {
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)))
+    {
         perror("setsockopt(SO_REUSEPORT)");
         close(sock);
         return -1;
     }
 
-    if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt))) {
+    if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt)))
+    {
         perror("setsockopt(TCP_NODELAY)");
         close(sock);
         return -1;
     }
 
     int bufsize = 1024 * 1024;
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize))) {
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize)))
+    {
         perror("setsockopt(SO_RCVBUF)");
     }
-    if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize))) {
+    if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)))
+    {
         perror("setsockopt(SO_SNDBUF)");
     }
 
@@ -133,7 +138,7 @@ void Server::acceptConnections()
 
     while (!shutdownServer)
     {
-        int numEvents = epoll_wait(epollFd, events, config.MAX_EVENTS, config.MAX_EVENTS);
+        int numEvents = epoll_wait(epollFd, events, config.MAX_EVENTS, 0);
         if (numEvents == -1)
         {
             if (errno == EINTR)
@@ -216,8 +221,28 @@ void Server::handleClient(int clientSocket)
         while (!shutdownServer)
         {
             int valread = read(clientSocket, buffer, config.BUFFER_SIZE);
-            if (valread <= 0)
-                break;
+            if (valread < 0)
+            {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    continue;
+
+                close(clientSocket);
+                activeConnections--;
+                return;
+            }
+            else if (valread == 0)
+            {
+                close(clientSocket);
+                activeConnections--;
+                return;
+            }
+            else if (valread == config.BUFFER_SIZE)
+            {
+                std::cerr << "Buffer overflow detected, closing connection.\n";
+                close(clientSocket);
+                activeConnections--;
+                return;
+            }
 
             std::string requestData(buffer, valread);
 
@@ -256,6 +281,7 @@ void Server::handleClient(int clientSocket)
 void Server::startWorker()
 {
     ServerConfig config;
+
     for (int i = 0; i < 4; ++i)
     {
         acceptThreads.emplace_back(&Server::acceptConnections, this);
@@ -265,12 +291,12 @@ void Server::startWorker()
     {
         threadPool.emplace_back([this]()
                                 {
-        while (!shutdownServer) {
-            int clientSocket;
-            if (socketQueue.pop(clientSocket)) {
-                handleClient(clientSocket);
-            }
-        } });
+            while (!shutdownServer) {
+                int clientSocket;
+                if (socketQueue.pop(clientSocket)) {
+                    handleClient(clientSocket);
+                }
+            } });
     }
 
     for (auto &t : acceptThreads)

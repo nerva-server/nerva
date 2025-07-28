@@ -25,8 +25,11 @@ public:
 
 private:
     int serverSocket;
+
     int epollFd;
     
+    std::thread acceptThread;
+
     std::atomic<bool> &shutdownServer;
     ThreadSafeQueue socketQueue;
     std::atomic<int> activeConnections;

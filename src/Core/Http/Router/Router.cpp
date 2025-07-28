@@ -5,7 +5,7 @@ Router::Router()
 {
 }
 
-void Router::addRoute(const std::string &path, RequestHandler handler)
+void Router::addRoute(const std::string& method, const std::string &path, RequestHandler handler)
 {
     routes[path] = handler;
 }

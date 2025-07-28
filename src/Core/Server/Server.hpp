@@ -20,11 +20,6 @@ public:
     void startWorker();
     void stopWorker();
 
-    void get(const std::string &path, RequestHandler handler)
-    {
-        addRoute(path, handler);
-    }
-
     static int initSocket(int port, int listenQueueSize);
 
 private:

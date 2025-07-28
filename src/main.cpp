@@ -39,35 +39,47 @@ int main()
 
     std::cout << "Sunucu " << config.PORT << " portunda dinleniyor...\n";
 
-    int cpuCount = 6;
+    int cpuCount = 12;
     if (cpuCount == 0)
         cpuCount = 4;
 
     Cluster clusterManager;
     std::vector<pid_t> workers = clusterManager.forkWorkers(serverSocket, cpuCount);
 
-    if (workers.empty())
+    if (workers.empty() && getpid() != getppid())
     {
         Server workerServer(serverSocket, shutdownServer);
         workerServer.Get("/", [](const Http::Request &req, Http::Response &res)
-        {
+                         {
             res.setStatus(200, "OK");
             res.setHeader("Content-Type", "text/plain");
-            res.body = "Hello, World!";
-        });
+            res.body = "Hello, World!"; });
+
+        workerServer.Get("/a", [](const Http::Request &req, Http::Response &res)
+                         {
+            res.setStatus(200, "OK");
+            res.setHeader("Content-Type", "application/json");
+            res.body = "{message:'Hello World'}"; });
 
         workerServer.startWorker();
         close(serverSocket);
         return 0;
     }
-
-    while (!shutdownServer)
+    else
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+        while (!shutdownServer)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
 
-    clusterManager.sendShutdownSignal(workers);
-    clusterManager.waitForWorkers(workers);
+        clusterManager.sendShutdownSignal(workers);
+
+        clusterManager.waitForWorkers(workers);
+
+        close(serverSocket);
+        std::cout << "Sunucu kapatıldı.\n";
+    }
+    
     close(serverSocket);
     std::cout << "Sunucu kapatıldı.\n";
 

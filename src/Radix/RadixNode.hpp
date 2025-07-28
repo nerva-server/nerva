@@ -8,7 +8,7 @@
 #include <functional>
 #include <optional>
 
-using Handler = std::function<void()>;
+#include "Utils/Handlers.hpp"
 
 class RadixNode
 {
@@ -16,13 +16,13 @@ public:
     explicit RadixNode(std::string segment = "");
     ~RadixNode();
 
-    void insert(const std::string &method, const std::string &path, Handler handler);
-    std::optional<Handler> find(const std::string &method, const std::string &path, std::map<std::string, std::string> &params) const;
+    void insert(const std::string &method, const std::string &path, const RequestHandler &handler);
+    std::optional<RequestHandler> find(const std::string &method, const std::string &path, std::map<std::string, std::string> &params) const;
 
 private:
     std::string segment;
     std::vector<std::unique_ptr<RadixNode>> children;
-    std::map<std::string, Handler> methodHandlers;
+    std::map<std::string, RequestHandler> methodHandlers;
 
     bool isParam() const;
     RadixNode *findChild(const std::string &seg) const;

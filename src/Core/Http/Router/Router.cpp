@@ -1,14 +1,11 @@
 #include "Router.hpp"
 #include <iostream>
-#include <sstream>
 
-Router::Router()
-{
-}
+Router::Router() = default;
 
-void Router::addRoute(const std::string &method, const std::string &path, RequestHandler handler)
+void Router::addRoute(const std::string &method, const std::string &path, const RequestHandler &handler)
 {
-    routes[makeKey(method, path)] = handler;
+    routes.insert(method, path, handler);
 }
 
 void Router::Get(const std::string &path, const RequestHandler &handler)
@@ -23,10 +20,12 @@ void Router::Post(const std::string &path, const RequestHandler &handler)
 
 bool Router::dispatch(const Http::Request &req, Http::Response &res) const
 {
-    auto it = routes.find(makeKey(req.method, req.path));
-    if (it != routes.end())
+    std::map<std::string, std::string> params;
+    auto handlerOpt = routes.find(req.method, req.path, params);
+
+    if (handlerOpt.has_value())
     {
-        it->second(req, res);
+        handlerOpt.value()(req, res);
         return true;
     }
 

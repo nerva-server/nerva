@@ -4,7 +4,7 @@
 RadixNode::RadixNode(std::string segment) : segment(std::move(segment)) {}
 RadixNode::~RadixNode() = default;
 
-void RadixNode::insert(const std::string &method, const std::string &path, Handler handler)
+void RadixNode::insert(const std::string &method, const std::string &path, const RequestHandler& handler)
 {
     auto segments = split(path);
     RadixNode *current = this;
@@ -23,7 +23,7 @@ void RadixNode::insert(const std::string &method, const std::string &path, Handl
     current->methodHandlers[method] = handler;
 }
 
-std::optional<Handler> RadixNode::find(const std::string &method, const std::string &path, std::map<std::string, std::string> &params) const
+std::optional<RequestHandler> RadixNode::find(const std::string &method, const std::string &path, std::map<std::string, std::string> &params) const
 {
     auto segments = split(path);
     const RadixNode *current = this;

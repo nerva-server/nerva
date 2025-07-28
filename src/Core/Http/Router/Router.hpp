@@ -7,13 +7,14 @@
 #include <sstream>
 
 #include "Utils/Handlers.hpp"
+#include "Radix/RadixNode.hpp"
 
 class Router
 {
 public:
     Router();
 
-    void addRoute(const std::string &method, const std::string &path, RequestHandler handler);
+    void addRoute(const std::string &method, const std::string &path, const RequestHandler &handler);
 
     void Get(const std::string &path, const RequestHandler &handler);
     void Post(const std::string &path, const RequestHandler &handler);
@@ -26,7 +27,7 @@ private:
         return method + ":" + path;
     }
 
-    std::map<std::string, RequestHandler> routes;
+    RadixNode routes;
 };
 
 #endif

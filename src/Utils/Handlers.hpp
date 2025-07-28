@@ -1,5 +1,5 @@
-#ifndef RESPONSE_HPP
-#define RESPONSE_HPP
+#ifndef HANDLERS_HPP
+#define HANDLERS_HPP
 
 #include <string>
 #include <map>

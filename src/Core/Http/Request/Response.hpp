@@ -28,33 +28,16 @@ namespace Http
             headers[key] = value;
         }
 
-        Response status(const int &status)
+        Response Status(const int &status)
         {
             this->setStatus(status, this->defaultStatusMessage(status));
             return *this;
         }
 
-        Response &send(const std::string &content)
+        void Send(std::string content)
         {
-            body = content;
-
-            if (isJson(content))
-            {
-                setHeader("Content-Type", "application/json");
-            }
-            else if (isHtml(content))
-            {
-                setHeader("Content-Type", "text/html");
-            }
-            else
-            {
-                setHeader("Content-Type", "text/plain");
-            }
-
-            setHeader("Connection", "keep-alive");
-            setHeader("Content-Length", std::to_string(body.size()));
-
-            return *this;
+            setHeader("Content-Type", "");
+            this->body = content;
         }
 
         std::string toString() const
@@ -65,8 +48,9 @@ namespace Http
             {
                 responseStream << key << ": " << val << "\r\n";
             }
-            responseStream << "\r\n"
-                           << body;
+            responseStream << "Content-Length: " << body.size() << "\r\n";
+            responseStream << "Connection: keep-alive" << "\r\n\r\n";
+            responseStream << body;
             return responseStream.str();
         }
 
@@ -94,19 +78,6 @@ namespace Http
             default:
                 return "Unknown";
             }
-        }
-
-        static bool isJson(const std::string &content)
-        {
-            return !content.empty() &&
-                   ((content.front() == '{' && content.back() == '}') ||
-                    (content.front() == '[' && content.back() == ']'));
-        }
-
-        static bool isHtml(const std::string &content)
-        {
-            static std::regex htmlRegex(R"(<\s*html[^>]*>)", std::regex_constants::icase);
-            return std::regex_search(content, htmlRegex);
         }
     };
 }

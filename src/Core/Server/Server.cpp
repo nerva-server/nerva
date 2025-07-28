@@ -25,10 +25,16 @@
 
 std::atomic<bool> shutdownServer{false};
 
+void signalHandler(int signum)
+{
+    shutdownServer.store(true);
+}
+
 Server::Server(ServerConfig &config)
     : config(config),
       activeConnections(0)
 {
+    std::signal(SIGINT, signalHandler);
 }
 
 Server::~Server()
@@ -285,18 +291,6 @@ void Server::Start()
         return;
     }
 
-    struct sigaction sa;
-    sa.sa_handler = [](int) {};
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-
-    if (sigaction(SIGINT, &sa, NULL) == -1 ||
-        sigaction(SIGTERM, &sa, NULL) == -1)
-    {
-        perror("sigaction");
-        return;
-    }
-    
     Cluster clusterManager;
     std::vector<pid_t> workers = clusterManager.forkWorkers(serverSocket, cpuCount);
 
@@ -353,8 +347,9 @@ void Server::StartWorker()
 
 void Server::Stop()
 {
-    shutdownServer = true;
-    
+    shutdownServer.store(true); 
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     for (auto &t : acceptThreads)
     {
         if (t.joinable())

@@ -30,7 +30,7 @@ int main()
             res.body = "Hello, World!"; });
 
     server.Get("/a", [](const Http::Request &req, Http::Response &res)
-               { res.status(200).send(); });
+               { res.Status(200).Send(std::string(R"({ message: "HELLO" })")); });
 
     server.Start();
 

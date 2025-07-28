@@ -34,7 +34,8 @@ namespace Http
             {
                 responseStream << key << ": " << val << "\r\n";
             }
-            responseStream << "Content-Length: " << body.size() << "\r\n\r\n";
+            responseStream << "Content-Length: " << body.size() << "\r\n";
+            responseStream << "Connection: keep-alive" << "\r\n\r\n";
             responseStream << body;
             return responseStream.str();
         }

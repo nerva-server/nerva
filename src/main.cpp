@@ -19,7 +19,6 @@ std::atomic<bool> shutdownServer(false);
 
 void signal_handler(int signum)
 {
-    std::cout << "Process " << getpid() << " received signal " << signum << ", initiating graceful shutdown...\n";
     shutdownServer = true;
 }
 
@@ -80,8 +79,5 @@ int main()
         std::cout << "Sunucu kapatıldı.\n";
     }
     
-    close(serverSocket);
-    std::cout << "Sunucu kapatıldı.\n";
-
     return 0;
 }

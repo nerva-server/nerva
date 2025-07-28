@@ -45,7 +45,6 @@ void Cluster::sendShutdownSignal(const std::vector<pid_t> &workers)
 {
     for (pid_t pid : workers)
     {
-        std::cout << "Sending SIGTERM to worker " << pid << "...\n";
         kill(pid, SIGTERM);
     }
 }
@@ -57,11 +56,11 @@ void Cluster::waitForWorkers(const std::vector<pid_t> &workers)
         int status;
         if (waitpid(pid, &status, 0) == -1)
         {
-            perror("waitpid");
+            // perror("waitpid");
         }
         else
         {
-            std::cout << "Worker " << pid << " terminated with status " << status << ".\n";
+            // std::cout << "Worker " << pid << " terminated with status " << status << ".\n";
         }
     }
 }

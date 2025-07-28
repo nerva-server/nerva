@@ -19,27 +19,21 @@
 #include <sys/wait.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
-#include "Utils/ThreadSafeQueue.hpp"
 
-Server::Server(int serverSocket, std::atomic<bool> &shutdownFlag)
-    : serverSocket(serverSocket),
-      shutdownServer(shutdownFlag),
+#include "Utils/ThreadSafeQueue.hpp"
+#include "Core/Cluster/Cluster.hpp"
+
+std::atomic<bool> shutdownServer{false};
+
+Server::Server(ServerConfig &config)
+    : config(config),
       activeConnections(0)
 {
-    int flags = fcntl(serverSocket, F_GETFL, 0);
-    if (flags == -1)
-    {
-        perror("fcntl F_GETFL");
-    }
-    if (fcntl(serverSocket, F_SETFL, flags | O_NONBLOCK) == -1)
-    {
-        perror("fcntl F_SETFL O_NONBLOCK");
-    }
 }
 
 Server::~Server()
 {
-    stopWorker();
+    Stop();
 }
 
 int Server::SetNonBlocking(int fd)
@@ -278,7 +272,56 @@ void Server::handleClient(int clientSocket)
     activeConnections--;
 }
 
-void Server::startWorker()
+void Server::Start()
+{
+    int cpuCount = 6;
+    if (cpuCount == 0)
+        cpuCount = 4;
+
+    serverSocket = initSocket(config.PORT, config.ACCEPT_QUEUE_SIZE); // Store in member variable
+    if (serverSocket < 0)
+    {
+        std::cerr << "Failed to initialize server socket. Exiting.\n";
+        return;
+    }
+
+    // Set up proper signal handling using sigaction
+    struct sigaction sa;
+    sa.sa_handler = [](int) { /* can't access members here */ };
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+
+    if (sigaction(SIGINT, &sa, NULL) == -1 ||
+        sigaction(SIGTERM, &sa, NULL) == -1)
+    {
+        perror("sigaction");
+        return;
+    }
+
+    // Alternative signal handling approach
+    // You'll need to check shutdownServer in your main loops
+    Cluster clusterManager;
+    std::vector<pid_t> workers = clusterManager.forkWorkers(serverSocket, cpuCount);
+
+    if (workers.empty() && getpid() != getppid())
+    {
+        StartWorker();
+    }
+    else
+    {
+        while (!shutdownServer.load())
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        clusterManager.sendShutdownSignal(workers);
+        clusterManager.waitForWorkers(workers);
+        close(serverSocket);
+        std::cout << "Server shut down.\n";
+    }
+}
+
+void Server::StartWorker()
 {
     ServerConfig config;
 
@@ -311,7 +354,7 @@ void Server::startWorker()
     }
 }
 
-void Server::stopWorker()
+void Server::Stop()
 {
     for (auto &t : acceptThreads)
     {

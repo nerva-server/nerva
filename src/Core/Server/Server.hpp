@@ -15,22 +15,22 @@
 class Server : public Router
 {
 public:
-    Server(int serverSocket, std::atomic<bool> &shutdownFlag);
+    Server(ServerConfig &config);
     ~Server();
 
-    void startWorker();
-    void stopWorker();
+    void Start();
+    void Stop();
 
     static int initSocket(int port, int listenQueueSize);
 
 private:
     int serverSocket;
-
     int epollFd;
-    
+
+    ServerConfig config;
+
     std::thread acceptThread;
 
-    std::atomic<bool> &shutdownServer;
     ThreadSafeQueue socketQueue;
     std::atomic<int> activeConnections;
 
@@ -39,7 +39,7 @@ private:
 
     void acceptConnections();
     void handleClient(int clientSocket);
-
+    void StartWorker();
     static int SetNonBlocking(int fd);
 };
 

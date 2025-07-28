@@ -53,17 +53,37 @@ int Server::SetNonBlocking(int fd)
 int Server::initSocket(int port, int listenQueueSize)
 {
     int sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-    if (sock == 0)
+    if (sock == -1)
     {
         perror("socket failed");
         return -1;
     }
+
     int opt = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) < 0)
-    {
-        perror("setsockopt");
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+        perror("setsockopt(SO_REUSEADDR)");
         close(sock);
         return -1;
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) {
+        perror("setsockopt(SO_REUSEPORT)");
+        close(sock);
+        return -1;
+    }
+
+    if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt))) {
+        perror("setsockopt(TCP_NODELAY)");
+        close(sock);
+        return -1;
+    }
+
+    int bufsize = 1024 * 1024;
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize))) {
+        perror("setsockopt(SO_RCVBUF)");
+    }
+    if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize))) {
+        perror("setsockopt(SO_SNDBUF)");
     }
 
     struct sockaddr_in address;

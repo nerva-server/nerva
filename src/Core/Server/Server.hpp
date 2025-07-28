@@ -25,7 +25,8 @@ public:
 
 private:
     int serverSocket;
-    int epollFd;  // epoll file descriptor
+    int epollFd;
+    
     std::atomic<bool> &shutdownServer;
     ThreadSafeQueue socketQueue;
     std::atomic<int> activeConnections;

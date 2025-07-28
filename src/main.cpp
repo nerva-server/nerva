@@ -37,5 +37,7 @@ int main()
 
     workerServer.Start();
 
+    workerServer.Stop();
+
     return 0;
 }

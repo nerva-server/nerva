@@ -356,6 +356,12 @@ void Server::StartWorker()
 
 void Server::Stop()
 {
+    shutdownServer.store(true);
+    if (serverSocket >= 0)
+    {
+        close(serverSocket);
+        serverSocket = -1;
+    }
     for (auto &t : acceptThreads)
     {
         if (t.joinable())

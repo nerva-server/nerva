@@ -21,23 +21,23 @@ int main()
 
     std::cout << "Sunucu " << config.PORT << " portunda dinleniyor...\n";
 
-    Server workerServer = Server(config);
+    Server server = Server(config);
 
-    workerServer.Get("/", [](const Http::Request &req, Http::Response &res)
+    server.Get("/", [](const Http::Request &req, Http::Response &res)
                      {
             res.setStatus(200, "OK");
             res.setHeader("Content-Type", "text/plain");
             res.body = "Hello, World!"; });
 
-    workerServer.Get("/a", [](const Http::Request &req, Http::Response &res)
+    server.Get("/a", [](const Http::Request &req, Http::Response &res)
                      {
             res.setStatus(200, "OK");
             res.setHeader("Content-Type", "application/json");
             res.body = R"({"message": "Hello World"})"; });
 
-    workerServer.Start();
+    server.Start();
 
-    workerServer.Stop();
+    server.Stop();
 
     return 0;
 }

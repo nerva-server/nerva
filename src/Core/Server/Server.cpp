@@ -278,16 +278,15 @@ void Server::Start()
     if (cpuCount == 0)
         cpuCount = 4;
 
-    serverSocket = initSocket(config.PORT, config.ACCEPT_QUEUE_SIZE); // Store in member variable
+    serverSocket = initSocket(config.PORT, config.ACCEPT_QUEUE_SIZE);
     if (serverSocket < 0)
     {
         std::cerr << "Failed to initialize server socket. Exiting.\n";
         return;
     }
 
-    // Set up proper signal handling using sigaction
     struct sigaction sa;
-    sa.sa_handler = [](int) { /* can't access members here */ };
+    sa.sa_handler = [](int) {};
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
 
@@ -297,9 +296,7 @@ void Server::Start()
         perror("sigaction");
         return;
     }
-
-    // Alternative signal handling approach
-    // You'll need to check shutdownServer in your main loops
+    
     Cluster clusterManager;
     std::vector<pid_t> workers = clusterManager.forkWorkers(serverSocket, cpuCount);
 

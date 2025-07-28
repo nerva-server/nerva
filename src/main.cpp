@@ -24,16 +24,13 @@ int main()
     Server server = Server(config);
 
     server.Get("/", [](const Http::Request &req, Http::Response &res)
-                     {
+               {
             res.setStatus(200, "OK");
             res.setHeader("Content-Type", "text/plain");
             res.body = "Hello, World!"; });
 
     server.Get("/a", [](const Http::Request &req, Http::Response &res)
-                     {
-            res.setStatus(200, "OK");
-            res.setHeader("Content-Type", "application/json");
-            res.body = R"({"message": "Hello World"})"; });
+               { res.status(200).send(); });
 
     server.Start();
 

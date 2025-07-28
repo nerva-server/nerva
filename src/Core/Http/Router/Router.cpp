@@ -1,5 +1,6 @@
 #include "Router.hpp"
 #include <iostream>
+#include <sstream>
 
 Router::Router()
 {
@@ -7,7 +8,7 @@ Router::Router()
 
 void Router::addRoute(const std::string &method, const std::string &path, RequestHandler handler)
 {
-    routes[path] = handler;
+    routes[makeKey(method, path)] = handler;
 }
 
 void Router::Get(const std::string &path, const RequestHandler &handler)
@@ -15,13 +16,22 @@ void Router::Get(const std::string &path, const RequestHandler &handler)
     addRoute("GET", path, handler);
 }
 
-std::string Router::dispatch(const std::string &requestPath) const
+void Router::Post(const std::string &path, const RequestHandler &handler)
 {
-    auto it = routes.find(requestPath);
+    addRoute("POST", path, handler);
+}
+
+bool Router::dispatch(const Http::Request &req, Http::Response &res) const
+{
+    auto it = routes.find(makeKey(req.method, req.path));
     if (it != routes.end())
     {
-        return it->second(requestPath);
+        it->second(req, res);
+        return true;
     }
 
-    return "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\n404 Not Found";
+    res.setStatus(404, "Not Found");
+    res.setHeader("Content-Type", "text/plain");
+    res.body = "404 Not Found";
+    return false;
 }

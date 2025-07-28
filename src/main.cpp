@@ -49,9 +49,13 @@ int main()
     if (workers.empty())
     {
         Server workerServer(serverSocket, shutdownServer);
-        workerServer.Get("/", {
-
+        workerServer.Get("/", [](const Http::Request &req, Http::Response &res)
+        {
+            res.setStatus(200, "OK");
+            res.setHeader("Content-Type", "text/plain");
+            res.body = "Hello, World!";
         });
+
         workerServer.startWorker();
         close(serverSocket);
         return 0;

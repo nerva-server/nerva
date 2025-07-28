@@ -9,6 +9,17 @@
 #include <netinet/tcp.h>
 #include <system_error>
 #include <fcntl.h>
+#include <sstream>
+#include <chrono>
+#include <thread>
+#include <stdexcept>
+#include <atomic>
+#include <csignal>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <arpa/inet.h>
+#include <sys/epoll.h>
+#include "Utils/ThreadSafeQueue.hpp"
 
 Server::Server(int serverSocket, std::atomic<bool> &shutdownFlag)
     : serverSocket(serverSocket),
@@ -120,8 +131,6 @@ void Server::handleClient(int clientSocket)
     activeConnections++;
     char buffer[config.BUFFER_SIZE];
 
-    std::string response = dispatch("/");
-
     try
     {
         while (!shutdownServer)
@@ -136,22 +145,39 @@ void Server::handleClient(int clientSocket)
             if (activity < 0)
             {
                 if (errno == EBADF)
-                {
                     break;
-                }
+
                 throw std::system_error(errno, std::system_category(), "select");
             }
-            if (activity == 0)
-                break;
 
-            if (!FD_ISSET(clientSocket, &readfds))
-                continue;
+            if (activity == 0 || !FD_ISSET(clientSocket, &readfds))
+                break;
 
             int valread = read(clientSocket, buffer, config.BUFFER_SIZE);
             if (valread <= 0)
                 break;
 
-            if (send(clientSocket, response.c_str(), response.size(), MSG_NOSIGNAL) < 0)
+            std::string requestData(buffer, valread);
+
+            std::istringstream stream(requestData);
+            std::string method, path, httpVersion;
+            stream >> method >> path >> httpVersion;
+
+            Http::Request req;
+            req.method = method;
+            req.path = path;
+            req.body = ""; 
+
+            Http::Response res;
+
+            if (!dispatch(req, res))
+            {
+                
+            }
+
+            std::string responseData = res.toString();
+
+            if (send(clientSocket, responseData.c_str(), responseData.size(), MSG_NOSIGNAL) < 0)
             {
                 throw std::system_error(errno, std::system_category(), "send");
             }

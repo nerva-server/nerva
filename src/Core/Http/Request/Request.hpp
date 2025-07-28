@@ -9,21 +9,17 @@ namespace Http
     class Request
     {
     public:
-        Request();
+        Request() = default;
 
         bool parse(const std::string &rawRequest);
 
-        std::string getMethod() const;
-        std::string getPath() const;
-        std::string getVersion() const;
-        std::string getHeader(const std::string &name) const;
-
-    private:
         std::string method;
         std::string path;
         std::string version;
+        std::string body;
         std::map<std::string, std::string> headers;
 
+    private:
         void parseHeaders(const std::string &headerString);
     };
 }

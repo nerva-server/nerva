@@ -4,6 +4,7 @@
 #include <string>
 #include <functional>
 #include <map>
+#include <sstream>
 
 #include "Utils/Handlers.hpp"
 
@@ -12,14 +13,19 @@ class Router
 public:
     Router();
 
-    void addRoute(const std::string& method, const std::string &path, RequestHandler handler);
+    void addRoute(const std::string &method, const std::string &path, RequestHandler handler);
 
     void Get(const std::string &path, const RequestHandler &handler);
     void Post(const std::string &path, const RequestHandler &handler);
 
-    std::string dispatch(const std::string &requestPath) const;
+    bool dispatch(const Http::Request &req, Http::Response &res) const;
 
 private:
+    std::string makeKey(const std::string &method, const std::string &path) const
+    {
+        return method + ":" + path;
+    }
+
     std::map<std::string, RequestHandler> routes;
 };
 

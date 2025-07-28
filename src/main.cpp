@@ -51,7 +51,23 @@ int main()
     {
         Server workerServer(serverSocket, shutdownServer);
 
-        std::string body = "<h1>Hello World</h1>";
+        std::string body = "<!DOCTYPE html>\n"
+                           "<html lang='en'>\n"
+                           "<head>\n"
+                           "    <meta charset='UTF-8'>\n"
+                           "    <title>HTML</title>\n"
+                           "</head>\n"
+                           "<body>\n"
+                           "    <h1>Hello World!</h1>\n"
+                           "    <p>\n"
+                           "        <!-- Aşağıdaki boşluk dolgu içerik 10KB'yi tamamlar -->\n"
+                           "        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n"
+                           "        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\n"
+                           "        Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.\n"
+                           "        Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n"
+                           "    </p>\n"
+                           "</body>\n"
+                           "</html>";
         std::ostringstream response;
         response << "HTTP/1.1 200 OK\r\n"
                  << "Content-Type: text/html\r\n"

@@ -13,9 +13,6 @@ public:
     
     bool parse(const std::string &rawRequest);
 
-    std::string get() const;
-    std::string post() const;
-
 private:
     Router router;
 };

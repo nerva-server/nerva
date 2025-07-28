@@ -13,7 +13,7 @@ public:
     const int MAX_CONNECTIONS = 500000;
     const int ACCEPT_QUEUE_SIZE = 65535;
     const int ACCEPT_RETRY_DELAY_MS = 10;
-    const int MAX_EVENTS = 10;
+    const int MAX_EVENTS = 10000;
     
     ServerConfig() = default;
 };

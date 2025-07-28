@@ -58,7 +58,6 @@ int Server::initSocket(int port, int listenQueueSize)
         perror("socket failed");
         return -1;
     }
-
     int opt = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt)) < 0)
     {
@@ -94,46 +93,97 @@ int Server::initSocket(int port, int listenQueueSize)
 void Server::acceptConnections()
 {
     ServerConfig config;
+    int epollFd = epoll_create1(0);
+    if (epollFd == -1)
+    {
+        perror("epoll_create1");
+        return;
+    }
+    struct epoll_event event;
+    event.events = EPOLLIN;
+    event.data.fd = serverSocket;
+    if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serverSocket, &event) == -1)
+    {
+        perror("epoll_ctl");
+        close(epollFd);
+        return;
+    }
+
+    struct epoll_event events[config.MAX_EVENTS];
+
     while (!shutdownServer)
     {
-        int clientSocket;
-        struct sockaddr_in clientAddress;
-        socklen_t clientAddrLen = sizeof(clientAddress);
-
-        clientSocket = accept4(serverSocket, (struct sockaddr *)&clientAddress,
-                               &clientAddrLen, SOCK_NONBLOCK);
-
-        if (clientSocket < 0)
+        int numEvents = epoll_wait(epollFd, events, config.MAX_EVENTS, config.MAX_EVENTS);
+        if (numEvents == -1)
         {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(config.ACCEPT_RETRY_DELAY_MS));
+            if (errno == EINTR)
                 continue;
-            }
-            if (errno == EMFILE || errno == ENFILE)
+            perror("epoll_wait");
+            break;
+        }
+
+        for (int i = 0; i < numEvents; ++i)
+        {
+            if (events[i].data.fd == serverSocket)
             {
-                std::cerr << "File descriptor limit reached, waiting...\n";
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                continue;
+                int clientSocket;
+                struct sockaddr_in clientAddress;
+                socklen_t clientAddrLen = sizeof(clientAddress);
+
+                clientSocket = accept4(serverSocket, (struct sockaddr *)&clientAddress,
+                                       &clientAddrLen, SOCK_NONBLOCK);
+
+                if (clientSocket < 0)
+                {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK)
+                        continue;
+                    if (errno == EMFILE || errno == ENFILE)
+                    {
+                        std::cerr << "File descriptor limit reached\n";
+                        continue;
+                    }
+                    perror("accept4");
+                    continue;
+                }
+
+                if (activeConnections >= config.MAX_CONNECTIONS)
+                {
+                    close(clientSocket);
+                    continue;
+                }
+
+                int flag = 1;
+                if (setsockopt(clientSocket, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
+                {
+                    perror("setsockopt(TCP_NODELAY)");
+                }
+
+                event.events = EPOLLIN | EPOLLET;
+                event.data.fd = clientSocket;
+                if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientSocket, &event) == -1)
+                {
+                    perror("epoll_ctl: clientSocket");
+                    close(clientSocket);
+                    continue;
+                }
             }
-            perror("accept4");
-            continue;
-        }
+            else
+            {
+                int clientSocket = events[i].data.fd;
+                if (events[i].events & EPOLLERR || events[i].events & EPOLLHUP)
+                {
+                    epoll_ctl(epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
+                    close(clientSocket);
+                    activeConnections--;
+                    continue;
+                }
 
-        if (activeConnections >= config.MAX_CONNECTIONS)
-        {
-            close(clientSocket);
-            continue;
+                socketQueue.push(clientSocket);
+                epoll_ctl(epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
+            }
         }
-
-        int flag = 1;
-        if (setsockopt(clientSocket, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
-        {
-            perror("setsockopt(TCP_NODELAY)");
-        }
-
-        socketQueue.push(clientSocket);
     }
+    close(epollFd);
 }
 
 void Server::handleClient(int clientSocket)
@@ -141,29 +191,10 @@ void Server::handleClient(int clientSocket)
     ServerConfig config;
     activeConnections++;
     char buffer[config.BUFFER_SIZE];
-
     try
     {
         while (!shutdownServer)
         {
-            fd_set readfds;
-            FD_ZERO(&readfds);
-            FD_SET(clientSocket, &readfds);
-
-            struct timeval timeout = {config.KEEP_ALIVE_TIMEOUT, 0};
-
-            int activity = select(clientSocket + 1, &readfds, nullptr, nullptr, &timeout);
-            if (activity < 0)
-            {
-                if (errno == EBADF)
-                    break;
-
-                throw std::system_error(errno, std::system_category(), "select");
-            }
-
-            if (activity == 0 || !FD_ISSET(clientSocket, &readfds))
-                break;
-
             int valread = read(clientSocket, buffer, config.BUFFER_SIZE);
             if (valread <= 0)
                 break;
@@ -205,7 +236,6 @@ void Server::handleClient(int clientSocket)
 void Server::startWorker()
 {
     ServerConfig config;
-
     for (int i = 0; i < 4; ++i)
     {
         acceptThreads.emplace_back(&Server::acceptConnections, this);
@@ -215,12 +245,12 @@ void Server::startWorker()
     {
         threadPool.emplace_back([this]()
                                 {
-            while (!shutdownServer) {
-                int clientSocket;
-                if (socketQueue.pop(clientSocket)) {
-                    handleClient(clientSocket);
-                }
-            } });
+        while (!shutdownServer) {
+            int clientSocket;
+            if (socketQueue.pop(clientSocket)) {
+                handleClient(clientSocket);
+            }
+        } });
     }
 
     for (auto &t : acceptThreads)

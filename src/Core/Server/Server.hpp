@@ -6,6 +6,7 @@
 #include <vector>
 #include <thread>
 #include <netinet/in.h>
+#include <sys/epoll.h>
 
 #include "Utils/ThreadSafeQueue.hpp"
 #include "Secure/Config/ServerConfig.hpp"
@@ -24,6 +25,7 @@ public:
 
 private:
     int serverSocket;
+    int epollFd;  // epoll file descriptor
     std::atomic<bool> &shutdownServer;
     ThreadSafeQueue socketQueue;
     std::atomic<int> activeConnections;

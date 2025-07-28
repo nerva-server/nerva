@@ -14,6 +14,7 @@
 #include "Secure/Config/ServerConfig.hpp"
 #include "Core/Cluster/Cluster.hpp"
 #include "Core/Server/Server.hpp"
+#include "Utils/Json.hpp"
 
 int main()
 {
@@ -30,11 +31,13 @@ int main()
             res.body = "Hello, World!"; });
 
     server.Get("/a", [](const Http::Request &req, Http::Response &res)
-               { res.Status(200).Send(std::string(R"({ message: "HELLO" })")); });
+               { 
+            res.setHeader("Content-Type", "application/json");
+            const std::string jsonResponse = R"({"message": "Hello, A!"})";
+            res.body = Json::ParseAndReturnBody(jsonResponse); });
 
     server.Start();
 
     server.Stop();
-
     return 0;
 }

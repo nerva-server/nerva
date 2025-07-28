@@ -36,7 +36,6 @@ namespace Http
 
         void Send(std::string content)
         {
-            setHeader("Content-Type", "");
             this->body = content;
         }
 

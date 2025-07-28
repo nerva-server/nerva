@@ -1,5 +1,6 @@
 CXX = g++
-CXXFLAGS = -g -fsanitize=address -fno-omit-frame-pointer -std=c++20 -Wall -Wextra -O2 -I./src
+CXXFLAGS = -fno-omit-frame-pointer -std=c++20 -Wall -Wextra -lsimdjson -O2 -I./src
+# -g -fsanitize=address = ASan Debug
 
 SRC_DIR = src
 BUILD_DIR = build
@@ -18,7 +19,7 @@ $(BIN): $(OBJS)
 .PHONY: clean run
 
 run: $(BIN)
-	./$(BIN)
+	LD_PRELOAD=/usr/lib/libtcmalloc.so.4 ./$(BIN)
 
 clean:
 	rm -rf $(BUILD_DIR) $(BIN)

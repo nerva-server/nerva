@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -Wextra -O2 -I./src
+CXXFLAGS = -g -fsanitize=address -fno-omit-frame-pointer -std=c++20 -Wall -Wextra -O2 -I./src
 
 SRC_DIR = src
 BUILD_DIR = build

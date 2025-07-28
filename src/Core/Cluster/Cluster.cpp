@@ -31,7 +31,7 @@ std::vector<pid_t> Cluster::forkWorkers(int serverSocket, int cpuCount)
         }
         else if (pid == 0)
         {
-            return {};
+            return std::vector<pid_t>();
         }
         else
         {

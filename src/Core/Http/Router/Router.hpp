@@ -18,6 +18,8 @@ public:
 
     void Get(const std::string &path, const RequestHandler &handler);
     void Post(const std::string &path, const RequestHandler &handler);
+    void Put(const std::string &path, const RequestHandler &handler);
+    void Delete(const std::string &path, const RequestHandler &handler);
 
     bool dispatch(const Http::Request &req, Http::Response &res) const;
 

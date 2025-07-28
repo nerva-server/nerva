@@ -18,6 +18,16 @@ void Router::Post(const std::string &path, const RequestHandler &handler)
     addRoute("POST", path, handler);
 }
 
+void Router::Put(const std::string &path, const RequestHandler &handler)
+{
+    addRoute("PUT", path, handler);
+}
+
+void Router::Delete(const std::string &path, const RequestHandler &handler)
+{
+    addRoute("DELETE", path, handler);
+}
+
 bool Router::dispatch(const Http::Request &req, Http::Response &res) const
 {
     std::map<std::string, std::string> params;

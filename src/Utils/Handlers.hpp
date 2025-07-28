@@ -5,6 +5,9 @@
 #include <map>
 #include <functional>
 
-using RequestHandler = std::function<std::string(const std::string &requestPath)>;
+#include "Core/Http/Request/Request.hpp"
+#include "Core/Http/Request/Response.hpp"
+
+using RequestHandler = std::function<void(const Http::Request&, Http::Response&)>;
 
 #endif

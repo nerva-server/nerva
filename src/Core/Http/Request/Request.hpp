@@ -4,25 +4,28 @@
 #include <string>
 #include <map>
 
-class Request
+namespace Http
 {
-public:
-    Request();
-    
-    bool parse(const std::string &rawRequest);
+    class Request
+    {
+    public:
+        Request();
 
-    std::string getMethod() const;
-    std::string getPath() const;
-    std::string getVersion() const;
-    std::string getHeader(const std::string &name) const;
+        bool parse(const std::string &rawRequest);
 
-private:
-    std::string method;
-    std::string path;
-    std::string version;
-    std::map<std::string, std::string> headers;
-    
-    void parseHeaders(const std::string &headerString);
-};
+        std::string getMethod() const;
+        std::string getPath() const;
+        std::string getVersion() const;
+        std::string getHeader(const std::string &name) const;
 
-#endif 
+    private:
+        std::string method;
+        std::string path;
+        std::string version;
+        std::map<std::string, std::string> headers;
+
+        void parseHeaders(const std::string &headerString);
+    };
+}
+
+#endif

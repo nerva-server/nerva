@@ -5,9 +5,14 @@ Router::Router()
 {
 }
 
-void Router::addRoute(const std::string& method, const std::string &path, RequestHandler handler)
+void Router::addRoute(const std::string &method, const std::string &path, RequestHandler handler)
 {
     routes[path] = handler;
+}
+
+void Router::Get(const std::string &path, const RequestHandler &handler)
+{
+    addRoute("GET", path, handler);
 }
 
 std::string Router::dispatch(const std::string &requestPath) const

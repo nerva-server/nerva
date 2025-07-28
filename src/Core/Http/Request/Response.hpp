@@ -1,4 +1,3 @@
-#ifndef RESPONSE_HPP
 #define RESPONSE_HPP
 
 #include <string>
@@ -6,15 +5,16 @@
 
 #include "Core/Http/Router/Router.hpp"
 
-class Response
+namespace Http
 {
-public:
-    Response();
-    
-    bool parse(const std::string &rawRequest);
+    class Response
+    {
+    public:
+        Response();
 
-private:
-    Router router;
-};
+        bool parse(const std::string &rawRequest);
 
-#endif 
+    private:
+        Router router;
+    };
+}

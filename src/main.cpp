@@ -46,14 +46,19 @@ int main()
     Cluster clusterManager;
     std::vector<pid_t> workers = clusterManager.forkWorkers(serverSocket, cpuCount);
 
-    if (workers.empty()) {
+    if (workers.empty())
+    {
         Server workerServer(serverSocket, shutdownServer);
+        workerServer.Get("/", {
+
+        });
         workerServer.startWorker();
         close(serverSocket);
         return 0;
     }
 
-    while (!shutdownServer) {
+    while (!shutdownServer)
+    {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 

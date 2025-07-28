@@ -42,6 +42,14 @@ Server::~Server()
     stopWorker();
 }
 
+int Server::SetNonBlocking(int fd)
+{
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+        return -1;
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
 int Server::initSocket(int port, int listenQueueSize)
 {
     int sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
@@ -77,6 +85,9 @@ int Server::initSocket(int port, int listenQueueSize)
         close(sock);
         return -1;
     }
+
+    SetNonBlocking(sock);
+
     return sock;
 }
 
@@ -166,13 +177,12 @@ void Server::handleClient(int clientSocket)
             Http::Request req;
             req.method = method;
             req.path = path;
-            req.body = ""; 
+            req.body = "";
 
             Http::Response res;
 
             if (!dispatch(req, res))
             {
-                
             }
 
             std::string responseData = res.toString();

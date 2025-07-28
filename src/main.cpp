@@ -58,7 +58,7 @@ int main()
                          {
             res.setStatus(200, "OK");
             res.setHeader("Content-Type", "application/json");
-            res.body = "{message:'Hello World'}"; });
+            res.body = R"({"message": "Hello World"})"; });
 
         workerServer.startWorker();
         close(serverSocket);
@@ -78,6 +78,6 @@ int main()
         close(serverSocket);
         std::cout << "Sunucu kapatıldı.\n";
     }
-    
+
     return 0;
 }

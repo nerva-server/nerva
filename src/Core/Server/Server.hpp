@@ -33,6 +33,8 @@ private:
 
     void acceptConnections();
     void handleClient(int clientSocket);
+
+    static int SetNonBlocking(int fd);
 };
 
 #endif

@@ -28,20 +28,20 @@ void Router::Delete(const std::string &path, const RequestHandler &handler)
     addRoute("DELETE", path, handler);
 }
 
-bool Router::dispatch(const Http::Request &req, Http::Response &res) const
-{
+bool Router::dispatch(Http::Request &req, Http::Response &res) const {
     std::map<std::string, std::string> params;
     auto handlerOpt = routes.find(req.method, req.path, params);
-
-    if (handlerOpt.has_value())
-    {
+    
+    if (handlerOpt.has_value()) {
+        for (const auto& [key, value] : params) {
+            req.params[key] = value;
+        }
+        
         handlerOpt.value()(req, res);
         return true;
     }
-
+    
     res.setStatus(404, "Not Found");
-    res.setHeader("Content-Type", "text/plain");
-    res.body = "404 Not Found";
     return false;
 }
 

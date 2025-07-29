@@ -26,7 +26,7 @@ int main()
     Server server = Server(config);
 
     Middleware login = Middleware([](Http::Request &req, Http::Response &res, auto next) {
-        if (true) {
+        if (false) {
             res.setStatus(401, "Unauthorized");
             res.setHeader("Content-Type", "text/plain");
             res.body = "Unauthorized access";
@@ -39,8 +39,10 @@ int main()
     server.Use(&login);
 
     Router router;
-    router.Get("/", [](const Http::Request &req, Http::Response &res)
+    router.Get("/test/:id", [](const Http::Request &req, Http::Response &res)
                {
+            std::cout << "Test route accessed with ID: " << req.getParam("id") << req.getQuery("id") << "\n";
+
             res.setStatus(200, "OK");
             res.setHeader("Content-Type", "text/plain");
             res.body = "Hello, World1!"; });

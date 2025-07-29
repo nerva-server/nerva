@@ -32,7 +32,7 @@ public:
         }
     }
 
-    bool dispatch(const Http::Request &req, Http::Response &res) const;
+    bool dispatch(Http::Request &req, Http::Response &res) const;
 
     virtual void Handle(Http::Request& req, Http::Response& res, std::function<void()> next) override;
 

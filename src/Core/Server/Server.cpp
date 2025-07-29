@@ -216,60 +216,38 @@ void Server::handleClient(int clientSocket)
     ServerConfig config;
     activeConnections++;
     char buffer[config.BUFFER_SIZE];
+
     try
     {
-        while (!shutdownServer)
+        int valread = read(clientSocket, buffer, config.BUFFER_SIZE);
+        if (valread <= 0)
         {
-            int valread = read(clientSocket, buffer, config.BUFFER_SIZE);
-            if (valread < 0)
-            {
-                if (errno == EAGAIN || errno == EWOULDBLOCK)
-                    continue;
-
-                close(clientSocket);
-                activeConnections--;
-                return;
-            }
-            else if (valread == 0)
-            {
-                close(clientSocket);
-                activeConnections--;
-                return;
-            }
-            else if (valread == config.BUFFER_SIZE)
-            {
-                std::cerr << "Buffer overflow detected, closing connection.\n";
-                close(clientSocket);
-                activeConnections--;
-                return;
-            }
-
-            std::string requestData(buffer, valread);
-
-            std::istringstream stream(requestData);
-            std::string method, path, httpVersion;
-            stream >> method >> path >> httpVersion;
-
-            Http::Request req;
-            req.method = method;
-            req.path = path;
-            req.body = "";
-
-            Http::Response res;
-
-            Handle(req, res, []() {});
-
-            std::string responseData = res.toString();
-
-            if (send(clientSocket, responseData.c_str(), responseData.size(), MSG_NOSIGNAL) < 0)
-            {
-                throw std::system_error(errno, std::system_category(), "send");
-            }
+            close(clientSocket);
+            activeConnections--;
+            return;
         }
+
+        std::string requestData(buffer, valread);
+        Http::Request req;
+
+        if (!req.parse(requestData))
+        {
+            std::cerr << "Failed to parse request\n";
+            close(clientSocket);
+            activeConnections--;
+            return;
+        }
+
+        Http::Response res;
+
+        this->Handle(req, res, []() {});
+
+        std::string responseData = res.toString();
+        send(clientSocket, responseData.c_str(), responseData.size(), MSG_NOSIGNAL);
     }
-    catch (const std::system_error &e)
+    catch (const std::exception &e)
     {
-        std::cerr << "Client handling error: " << e.what() << " (" << e.code() << ")\n";
+        std::cerr << "Exception in handleClient: " << e.what() << "\n";
     }
 
     close(clientSocket);
@@ -345,7 +323,7 @@ void Server::StartWorker()
 
 void Server::Stop()
 {
-    shutdownServer.store(true); 
+    shutdownServer.store(true);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     for (auto &t : acceptThreads)

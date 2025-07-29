@@ -15,6 +15,7 @@
 #include "Core/Cluster/Cluster.hpp"
 #include "Core/Server/Server.hpp"
 #include "Utils/Json.hpp"
+#include "Core/Http/Middleware/Middleware.hpp"
 
 int main()
 {
@@ -24,12 +25,25 @@ int main()
 
     Server server = Server(config);
 
+    Middleware login = Middleware([](Http::Request &req, Http::Response &res, auto next) {
+        if (true) {
+            res.setStatus(401, "Unauthorized");
+            res.setHeader("Content-Type", "text/plain");
+            res.body = "Unauthorized access";
+            return;
+        } 
+
+        next();
+    });
+
+    server.Use(&login);
+
     Router router;
-    router.Get("/router", [](const Http::Request &req, Http::Response &res)
+    router.Get("/", [](const Http::Request &req, Http::Response &res)
                {
             res.setStatus(200, "OK");
             res.setHeader("Content-Type", "text/plain");
-            res.body = "Hello, World!"; });
+            res.body = "Hello, World1!"; });
 
     server.Get("/", [](const Http::Request &req, Http::Response &res)
                {
@@ -44,7 +58,7 @@ int main()
             res.body = Json::ParseAndReturnBody(jsonResponse); });
 
     server.Use(&router);
-    
+
     server.Start();
 
     server.Stop();

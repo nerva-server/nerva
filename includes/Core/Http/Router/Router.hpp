@@ -28,16 +28,17 @@ public:
 
     void Use(IHandler &handler)
     {
-        handlers.push_back(std::unique_ptr<IHandler>(&handler)); 
+        handlers.push_back(std::unique_ptr<IHandler>(&handler));
     }
 
-    UniqueRouter operator[] (std::string request_type) {
-      	return UniqueRouter{request_type, this};
+    UniqueRouter operator[](std::string request_type)
+    {
+        return UniqueRouter{request_type, this};
     };
 
     bool dispatch(Http::Request &req, Http::Response &res) const;
 
-    virtual void Handle(Http::Request& req, Http::Response& res, std::function<void()> next) override;
+    virtual void Handle(Http::Request &req, Http::Response &res, std::function<void()> next) override;
 
 private:
     std::string makeKey(const std::string &method, const std::string &path) const

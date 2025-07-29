@@ -57,6 +57,14 @@ int main()
             const std::string jsonResponse = R"({"message": "Hello, A!"})";
             res.body = Json::ParseAndReturnBody(jsonResponse); });
 
+    UniqueRouter uniqueRouter = UniqueRouter("GET", &router);
+    uniqueRouter.Use("/unique", {login}, [](const Http::Request &req, Http::Response &res)
+               {
+            res.setStatus(200, "OK");
+            res.setHeader("Content-Type", "text/plain");
+            res.body = "Hello, Unique World!";
+        });
+
     server.Use(router);
 
     server.Start();

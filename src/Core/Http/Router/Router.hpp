@@ -11,6 +11,8 @@
 #include "Utils/Handlers.hpp"
 #include "Radix/RadixNode.hpp"
 #include "Core/Http/Handler/IHandler.hpp"
+#include "UniqueRouter.hpp"
+
 
 class Router : public IHandler
 {
@@ -28,6 +30,10 @@ public:
     {
         handlers.push_back(std::unique_ptr<IHandler>(&handler)); 
     }
+
+    UniqueRouter operator[] (std::string request_type) {
+	return UniqueRouter{request_type, this};
+    };
 
     bool dispatch(Http::Request &req, Http::Response &res) const;
 

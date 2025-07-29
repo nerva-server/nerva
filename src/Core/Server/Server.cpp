@@ -1,4 +1,5 @@
-#include "Server.hpp"
+#include "Core/Server/Server.hpp"
+
 #include "Secure/Config/ServerConfig.hpp"
 
 #include <iostream>

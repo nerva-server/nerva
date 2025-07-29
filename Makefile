@@ -1,5 +1,5 @@
 CXX = clang++
-CXXFLAGS = -fno-omit-frame-pointer -std=c++20 -Wall -Wextra -lsimdjson -O2 -I./src
+CXXFLAGS = -fno-omit-frame-pointer -std=c++20 -Wall -Wextra -O2 -lsimdjson -I./src -I./includes
 # -g -fsanitize=address = ASan Debug
 
 SRC_DIR = src

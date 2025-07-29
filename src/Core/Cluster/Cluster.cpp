@@ -1,4 +1,5 @@
-#include "Cluster.hpp"
+#include "Core/Cluster/Cluster.hpp"
+
 #include <iostream>
 #include <unistd.h>
 #include <sys/wait.h>

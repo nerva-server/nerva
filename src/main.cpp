@@ -52,11 +52,16 @@ int main()
 
     server.Get("/123")
         .Use(login)
-        .Then([](const Http::Request &req, Http::Response &res) {
+        .Then([](const Http::Request &req, Http::Response &res)
+              {
         const std::string jsonResponse = R"({"message": "Hello, 123!"})";
-        res << 200 << Json::ParseAndReturnBody(jsonResponse);
-    });
-    
+        res << 200 << Json::ParseAndReturnBody(jsonResponse); });
+
+    server.Post("/test").Then([](const Http::Request &req, Http::Response &res)
+                              {
+        const std::string jsonResponse = R"({"message": "Hello, 123!"})";
+        res << 200 << Json::ParseAndReturnBody(jsonResponse); });
+
     server.Use(router);
 
     server.Start();

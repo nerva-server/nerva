@@ -1,5 +1,6 @@
-#include "Router.hpp"
 #include <string>
+
+#include "Router.hpp"
 
 class Router;
 

@@ -28,6 +28,9 @@ public:
     void Delete(const std::string &path, std::vector<std::reference_wrapper<IHandler>> middlewares, const RequestHandler &handler);
 
     RouteBuilder Get(const std::string path);
+    RouteBuilder Post(const std::string path);
+    RouteBuilder Put(const std::string path);
+    RouteBuilder Delete(const std::string path);
 
     void Use(IHandler &handler)
     {

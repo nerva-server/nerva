@@ -33,6 +33,18 @@ RouteBuilder Router::Get(const std::string path) {
     return RouteBuilder(*this, "GET", path);
 }
 
+RouteBuilder Router::Post(const std::string path) {
+    return RouteBuilder(*this, "POST", path);
+}
+
+RouteBuilder Router::Put(const std::string path) {
+    return RouteBuilder(*this, "PUT", path);
+}
+
+RouteBuilder Router::Delete(const std::string path) {
+    return RouteBuilder(*this, "DELETE", path);
+}
+
 bool Router::dispatch(Http::Request &req, Http::Response &res) const
 {
     std::map<std::string, std::string> params;

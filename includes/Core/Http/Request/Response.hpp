@@ -36,7 +36,7 @@ namespace Http
 
         Response &operator<<(const std::string &str)
         {
-            body = str;
+            body += str;
             return *this;
         }
 

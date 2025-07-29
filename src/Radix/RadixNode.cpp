@@ -1,4 +1,5 @@
-#include "RadixNode.hpp"
+#include "Radix/RadixNode.hpp"
+
 #include <sstream>
 #include <utility>
 #include <algorithm>

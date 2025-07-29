@@ -28,28 +28,52 @@ namespace Http
             headers[key] = value;
         }
 
-        Response Status(const int &status)
+        Response &operator<<(int code)
         {
-            this->setStatus(status, this->defaultStatusMessage(status));
+            this->statusCode = code;
             return *this;
         }
 
-        void Send(std::string content)
+        Response &operator<<(const std::string &str)
         {
-            this->body = content;
+            body = str;
+            return *this;
+        }
+
+        std::string detectContentType(const std::string &body) const
+        {
+            size_t start = body.find_first_not_of(" \t\n\r");
+            if (start == std::string::npos)
+                return "text/plain";
+
+            if (body[start] == '{' || body[start] == '[')
+                return "application/json";
+
+            if (body.find("<html") != std::string::npos || body.find("<!DOCTYPE html") != std::string::npos)
+                return "text/html";
+
+            return "text/plain";
         }
 
         std::string toString() const
         {
             std::ostringstream responseStream;
             responseStream << "HTTP/1.1 " << statusCode << " " << statusMessage << "\r\n";
+
+            if (headers.find("Content-Type") == headers.end())
+            {
+                responseStream << "Content-Type: " << detectContentType(body) << "\r\n";
+            }
+
             for (const auto &[key, val] : headers)
             {
                 responseStream << key << ": " << val << "\r\n";
             }
+
             responseStream << "Content-Length: " << body.size() << "\r\n";
             responseStream << "Connection: keep-alive" << "\r\n\r\n";
             responseStream << body;
+
             return responseStream.str();
         }
 

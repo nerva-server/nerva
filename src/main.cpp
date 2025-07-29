@@ -29,9 +29,7 @@ int main()
                                   {
         std::string token = req.getQuery("token");
         if (token != "123") {
-            res.setStatus(401, "Unauthorized");
-            res.setHeader("Content-Type", "text/plain");
-            res.body = "Unauthorized access";
+            res << 401 << "Unauthorized";
             return;
         } 
 
@@ -39,31 +37,18 @@ int main()
 
     Router router;
     router.Get("/test/:id", {login}, [](const Http::Request &req, Http::Response &res)
-               {
-            res.setStatus(200, "OK");
-            res.setHeader("Content-Type", "text/plain");
-            res.body = "Hello, World1!"; });
+               { res << 200 << "Test ID: " << req.getParam("id"); });
 
     server.Get("/", {}, [](const Http::Request &req, Http::Response &res)
-               {
-            res.setStatus(200, "OK");
-            res.setHeader("Content-Type", "text/plain");
-            res.body = "Hello, World!"; });
+               { res << 200 << "Hello, World!"; });
 
     server.Get("/a", {}, [](const Http::Request &req, Http::Response &res)
-               { 
-            res.setStatus(200, "OK");
-            res.setHeader("Content-Type", "application/json");
-            const std::string jsonResponse = R"({"message": "Hello, A!"})";
-            res.body = Json::ParseAndReturnBody(jsonResponse); });
+               { res << 200 << "Hello, A!"; });
 
-    UniqueRouter uniqueRouter = UniqueRouter("GET", &router);
-    uniqueRouter.Use("/unique", {login}, [](const Http::Request &req, Http::Response &res)
-               {
-            res.setStatus(200, "OK");
-            res.setHeader("Content-Type", "text/plain");
-            res.body = "Hello, Unique World!";
-        });
+    server["GET"].Use("/b", {login}, [](const Http::Request &req, Http::Response &res)
+                      { 
+                const std::string jsonResponse = R"({"message": "Hello, B!"})";
+                res << 200 << Json::ParseAndReturnBody(jsonResponse); });
 
     server.Use(router);
 

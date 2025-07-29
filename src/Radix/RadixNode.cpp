@@ -1,10 +1,18 @@
 #include "RadixNode.hpp"
 #include <sstream>
+#include <utility>
+#include <algorithm>
+#include <stdexcept>
+
+#include "Core/Http/Handler/IHandler.hpp"
 
 RadixNode::RadixNode(std::string segment) : segment(std::move(segment)) {}
 RadixNode::~RadixNode() = default;
 
-void RadixNode::insert(const std::string &method, const std::string &path, const RequestHandler& handler)
+void RadixNode::insert(const std::vector<std::reference_wrapper<IHandler>> &middlewares,
+                       const std::string &method,
+                       const std::string &path,
+                       const RequestHandler &handler)
 {
     auto segments = split(path);
     RadixNode *current = this;
@@ -21,9 +29,13 @@ void RadixNode::insert(const std::string &method, const std::string &path, const
     }
 
     current->methodHandlers[method] = handler;
+    if (!middlewares.empty())
+    {
+        current->methodMiddlewares[method] = middlewares;
+    }
 }
 
-std::optional<RequestHandler> RadixNode::find(const std::string &method, const std::string &path, std::map<std::string, std::string> &params) const
+std::optional<std::pair<RequestHandler, std::vector<std::reference_wrapper<IHandler>>>> RadixNode::find(const std::string &method, const std::string &path, std::map<std::string, std::string> &params) const
 {
     auto segments = split(path);
     const RadixNode *current = this;
@@ -43,10 +55,17 @@ std::optional<RequestHandler> RadixNode::find(const std::string &method, const s
         current = next;
     }
 
-    auto it = current->methodHandlers.find(method);
-    if (it != current->methodHandlers.end())
+    auto handlerIt = current->methodHandlers.find(method);
+    if (handlerIt != current->methodHandlers.end())
     {
-        return it->second;
+        std::vector<std::reference_wrapper<IHandler>> middlewares;
+        auto mwIt = current->methodMiddlewares.find(method);
+        if (mwIt != current->methodMiddlewares.end())
+        {
+            middlewares = mwIt->second;
+        }
+
+        return std::make_pair(handlerIt->second, middlewares);
     }
 
     return std::nullopt;

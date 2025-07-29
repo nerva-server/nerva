@@ -216,38 +216,56 @@ void Server::handleClient(int clientSocket)
     ServerConfig config;
     activeConnections++;
     char buffer[config.BUFFER_SIZE];
-
     try
     {
-        int valread = read(clientSocket, buffer, config.BUFFER_SIZE);
-        if (valread <= 0)
+        while (!shutdownServer)
         {
-            close(clientSocket);
-            activeConnections--;
-            return;
+            int valread = read(clientSocket, buffer, config.BUFFER_SIZE);
+            if (valread < 0)
+            {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    continue;
+
+                close(clientSocket);
+                activeConnections--;
+                return;
+            }
+            else if (valread == 0)
+            {
+                close(clientSocket);
+                activeConnections--;
+                return;
+            }
+            else if (valread == config.BUFFER_SIZE)
+            {
+                std::cerr << "Buffer overflow detected, closing connection.\n";
+                close(clientSocket);
+                activeConnections--;
+                return;
+            }
+
+            std::string requestData(buffer, valread);
+            Http::Request req;
+
+            if (!req.parse(requestData))
+            {
+                std::cerr << "Failed to parse request\n";
+                close(clientSocket);
+                activeConnections--;
+                return;
+            }
+
+            Http::Response res;
+
+            this->Handle(req, res, []() {});
+
+            std::string responseData = res.toString();
+            send(clientSocket, responseData.c_str(), responseData.size(), MSG_NOSIGNAL);
         }
-
-        std::string requestData(buffer, valread);
-        Http::Request req;
-
-        if (!req.parse(requestData))
-        {
-            std::cerr << "Failed to parse request\n";
-            close(clientSocket);
-            activeConnections--;
-            return;
-        }
-
-        Http::Response res;
-
-        this->Handle(req, res, []() {});
-
-        std::string responseData = res.toString();
-        send(clientSocket, responseData.c_str(), responseData.size(), MSG_NOSIGNAL);
     }
-    catch (const std::exception &e)
+    catch (const std::system_error &e)
     {
-        std::cerr << "Exception in handleClient: " << e.what() << "\n";
+        std::cerr << "Client handling error: " << e.what() << " (" << e.code() << ")\n";
     }
 
     close(clientSocket);

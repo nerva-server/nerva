@@ -50,6 +50,13 @@ int main()
                 const std::string jsonResponse = R"({"message": "Hello, B!"})";
                 res << 200 << Json::ParseAndReturnBody(jsonResponse); });
 
+    server.Get("/123")
+        .Use(login)
+        .Then([](const Http::Request &req, Http::Response &res) {
+        const std::string jsonResponse = R"({"message": "Hello, 123!"})";
+        res << 200 << Json::ParseAndReturnBody(jsonResponse);
+    });
+    
     server.Use(router);
 
     server.Start();

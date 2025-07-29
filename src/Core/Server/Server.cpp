@@ -118,7 +118,6 @@ int Server::initSocket(int port, int listenQueueSize)
 
 void Server::acceptConnections()
 {
-    ServerConfig config;
     int epollFd = epoll_create1(0);
     if (epollFd == -1)
     {
@@ -214,7 +213,6 @@ void Server::acceptConnections()
 
 void Server::handleClient(int clientSocket)
 {
-    ServerConfig config;
     activeConnections++;
     char buffer[config.BUFFER_SIZE];
     try
@@ -309,8 +307,6 @@ void Server::Start()
 
 void Server::StartWorker()
 {
-    ServerConfig config;
-
     for (int i = 0; i < 4; ++i)
     {
         acceptThreads.emplace_back(&Server::acceptConnections, this);

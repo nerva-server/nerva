@@ -29,6 +29,10 @@ void Router::Delete(const std::string &path, const std::vector<std::reference_wr
     addRoute(middlewares, "DELETE", path, handler);
 }
 
+RouteBuilder Router::Get(const std::string path) {
+    return RouteBuilder(*this, "GET", path);
+}
+
 bool Router::dispatch(Http::Request &req, Http::Response &res) const
 {
     std::map<std::string, std::string> params;
@@ -55,14 +59,14 @@ bool Router::dispatch(Http::Request &req, Http::Response &res) const
                 }
                 else
                 {
-                    handler(req, res); 
+                    handler(req, res);
                 }
             };
             next();
         }
         else
         {
-            handler(req, res); 
+            handler(req, res);
         }
 
         return true;

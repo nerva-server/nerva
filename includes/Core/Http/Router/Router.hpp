@@ -12,6 +12,7 @@
 #include "Radix/RadixNode.hpp"
 #include "Core/Http/Handler/IHandler.hpp"
 
+#include "RouteBuilder.hpp"
 #include "UniqueRouter.hpp"
 
 class Router : public IHandler
@@ -25,6 +26,8 @@ public:
     void Post(const std::string &path, std::vector<std::reference_wrapper<IHandler>> middlewares, const RequestHandler &handler);
     void Put(const std::string &path, std::vector<std::reference_wrapper<IHandler>> middlewares, const RequestHandler &handler);
     void Delete(const std::string &path, std::vector<std::reference_wrapper<IHandler>> middlewares, const RequestHandler &handler);
+
+    RouteBuilder Get(const std::string path);
 
     void Use(IHandler &handler)
     {

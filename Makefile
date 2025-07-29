@@ -1,4 +1,4 @@
-CXX = g++
+CXX = clang++
 CXXFLAGS = -fno-omit-frame-pointer -std=c++20 -Wall -Wextra -lsimdjson -O2 -I./src
 # -g -fsanitize=address = ASan Debug
 

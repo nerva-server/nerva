@@ -257,9 +257,7 @@ void Server::handleClient(int clientSocket)
 
             Http::Response res;
 
-            if (!dispatch(req, res))
-            {
-            }
+            Handle(req, res, []() {});
 
             std::string responseData = res.toString();
 

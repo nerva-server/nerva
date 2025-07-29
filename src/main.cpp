@@ -24,6 +24,13 @@ int main()
 
     Server server = Server(config);
 
+    Router router;
+    router.Get("/router", [](const Http::Request &req, Http::Response &res)
+               {
+            res.setStatus(200, "OK");
+            res.setHeader("Content-Type", "text/plain");
+            res.body = "Hello, World!"; });
+
     server.Get("/", [](const Http::Request &req, Http::Response &res)
                {
             res.setStatus(200, "OK");
@@ -36,6 +43,8 @@ int main()
             const std::string jsonResponse = R"({"message": "Hello, A!"})";
             res.body = Json::ParseAndReturnBody(jsonResponse); });
 
+    server.Use(&router);
+    
     server.Start();
 
     server.Stop();

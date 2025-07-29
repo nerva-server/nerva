@@ -44,3 +44,23 @@ bool Router::dispatch(const Http::Request &req, Http::Response &res) const
     res.body = "404 Not Found";
     return false;
 }
+
+void Router::Handle(Http::Request &req, Http::Response &res, std::function<void()> next)
+{
+    size_t index = 0;
+    std::function<void()> callNext = [&]()
+    {
+        if (index < handlers.size())
+        {
+            handlers[index++]->Handle(req, res, callNext);
+        }
+        else
+        {
+            if (!dispatch(req, res))
+            {
+                next();
+            }
+        }
+    };
+    callNext();
+}

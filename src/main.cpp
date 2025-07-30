@@ -21,72 +21,109 @@ int main()
 {
     ServerConfig config;
 
-    std::cout << "Sunucu " << config.PORT << " portunda dinleniyor...\n";
+    std::cout << "Server listening on port " << config.PORT << "...\n";
 
     Server server = Server(config);
 
-    Middleware login = Middleware([](Http::Request &req, Http::Response &res, auto next)
+    Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next)
                                   {
         std::string token = req.getQuery("token");
         if (token != "123") {
             res << 401 << "Unauthorized";
             return;
         } 
-
-        next(); });
+        next(); 
+    });
 
     server.Static("/static", "./public");
 
-    server.Get("/ajpgtest").Then([](const Http::Request &req, Http::Response &res) {
-        res.SendFile("./public/a.jpg");
-    });
+    server.Get("/", {}, [](const Http::Request &req, Http::Response &res)
+               { res << 200 << "Home Page - Nerva HTTP Server"; });
 
-    Router router;
-    router.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res)
+    server.Get("/home", {}, [](const Http::Request &req, Http::Response &res)
+               { res << 200 << "Welcome!"; });
+
+    server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res)
                { res << 200 << "Test ID: " << req.getParam("id"); });
 
-    server.Get("/", {}, [](const Http::Request &req, Http::Response &res)
-               { res << 200 << "Hello, World!"; });
-
-    server.Get("/a", {}, [](const Http::Request &req, Http::Response &res)
-               { res << 200 << "Hello, A!"; });
-
-    server["GET"].Use("/b", {login}, [](const Http::Request &req, Http::Response &res)
-                      { 
-                const std::string jsonResponse = R"({"message": "Hello, B!"})";
-                res << 200 << Json::ParseAndReturnBody(jsonResponse); });
-
-    server["GET"].Use("/redirect", {login}, [](const Http::Request &req, Http::Response &res)
-                      { 
-                res.MovedRedirect("/redirect-1");
-            });
-
-    server["GET"].Register("/registerTest").Use(login).Then([](const Http::Request &req, Http::Response &res)
-                                                            {
-        const std::string jsonResponse = R"({"message": "Hello, Register!"})";
-        res << 200 << Json::ParseAndReturnBody(jsonResponse); });
-
-    server.Get("/123")
-        .Use(login)
-        .Then([](const Http::Request &req, Http::Response &res)
-              {
-        const std::string jsonResponse = R"({"message": "Hello, 123!"})";
-        res << 200 << Json::ParseAndReturnBody(jsonResponse); });
-
-    server.Post("/test").Then([](const Http::Request &req, Http::Response &res)
+    server.Post("/test", {}, [](const Http::Request &req, Http::Response &res)
                               {
-        const std::string jsonResponse = R"({"message": "Hello, 123!"})";
-        res << 200 << Json::ParseAndReturnBody(jsonResponse); });
-
-    server.Use("/asd", login);
-    server.Use("/asd", router);
-
-    server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
-        res << 404 << "My 404 Handler";
+        const std::string jsonResponse = R"({"message": "Test POST successful!"})";
+        res << 200 << Json::ParseAndReturnBody(jsonResponse); 
     });
 
-    server.Start();
+    server.Get("/image-test", {}, [](const Http::Request &req, Http::Response &res)
+                                 { res.SendFile("./public/a.jpg"); });
 
+    server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res)
+                      { 
+                const std::string jsonResponse = R"({"message": "Protected area - Welcome!"})";
+                res << 200 << Json::ParseAndReturnBody(jsonResponse); 
+    });
+
+    server["GET"].Use("/admin", {authMiddleware}, [](const Http::Request &req, Http::Response &res)
+                      { 
+                const std::string jsonResponse = R"({"message": "Admin panel", "status": "active"})";
+                res << 200 << Json::ParseAndReturnBody(jsonResponse); 
+    });
+
+    server["GET"].Use("/redirect", {authMiddleware}, [](const Http::Request &req, Http::Response &res)
+                      { res.MovedRedirect("/home"); });
+
+    server["GET"].Register("/register-test").Use(authMiddleware).Then([](const Http::Request &req, Http::Response &res)
+                                                            {
+        const std::string jsonResponse = R"({"message": "Register test successful!"})";
+        res << 200 << Json::ParseAndReturnBody(jsonResponse); 
+    });
+
+    server.Get("/secure")
+        .Use(authMiddleware)
+        .Then([](const Http::Request &req, Http::Response &res)
+              {
+        const std::string jsonResponse = R"({"message": "Secure area", "access": "granted"})";
+        res << 200 << Json::ParseAndReturnBody(jsonResponse); 
+    });
+
+    Router apiRouter;
+    apiRouter.Get("/users", {}, [](const Http::Request &req, Http::Response &res)
+                  { res << 200 << "User list"; });
+    
+    apiRouter.Get("/users/:id", {}, [](const Http::Request &req, Http::Response &res)
+                  { res << 200 << "User ID: " << req.getParam("id"); });
+
+    server.Use("/api", apiRouter);
+
+    server.Group("/api/v1").Then([](Router &r) {
+        r.Get("/users").Then([](const Http::Request &req, Http::Response &res)
+                            { res << 200 << "API v1 - Users"; });
+        
+        r.Get("/posts").Then([](const Http::Request &req, Http::Response &res)
+                            { res << 200 << "API v1 - Posts"; });
+    });
+
+    server.Group("/admin").Then([](Router &r) {
+        r.Get("/dashboard").Then([](const Http::Request &req, Http::Response &res)
+                                { res << 200 << "Admin Dashboard"; });
+        
+        r.Get("/settings").Then([](const Http::Request &req, Http::Response &res)
+                               { res << 200 << "Admin Settings"; });
+    });
+
+    server.Group("/blog").Then([](Router &r) {
+        r.Get("/posts").Then([](const Http::Request &req, Http::Response &res)
+                            { res << 200 << "Blog Posts"; });
+        
+        r.Get("/posts/:id").Then([](const Http::Request &req, Http::Response &res)
+                                { res << 200 << "Blog post ID: " << req.getParam("id"); });
+        
+        r.Get("/categories").Then([](const Http::Request &req, Http::Response &res)
+                                 { res << 200 << "Blog Categories"; });
+    });
+
+    server.Get("/*").Then([](const Http::Request &req, Http::Response &res)
+                          { res << 404 << "Page not found - 404"; });
+
+    server.Start();
     server.Stop();
     return 0;
 }

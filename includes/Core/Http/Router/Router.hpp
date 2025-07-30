@@ -14,6 +14,7 @@
 #include "Core/Http/Handler/IHandler.hpp"
 
 #include "RouteBuilder.hpp"
+#include "GroupBuilder.hpp"
 #include "UniqueRouter.hpp"
 
 class Router : public IHandler
@@ -33,9 +34,18 @@ public:
     RouteBuilder Put(const std::string path);
     RouteBuilder Delete(const std::string path);
 
+    void Group(const std::string &path, std::vector<std::reference_wrapper<IHandler>> middlewares, GroupHandler handler);
+
+    GroupBuilder Group(const std::string path);
+
     void Use(const std::string &path, IHandler &handler)
     {
         handlers.push_back({path, std::unique_ptr<IHandler>(&handler)});
+    }
+    
+    void Use(const std::string &path, std::unique_ptr<IHandler> handler)
+    {
+        handlers.push_back({path, std::move(handler)});
     }
 
     UniqueRouter operator[](std::string request_type)

@@ -112,32 +112,53 @@ bool Router::dispatch(Http::Request &req, Http::Response &res, const std::string
     return false;
 }
 
-void Router::Handle(Http::Request &req, Http::Response &res, std::function<void()> next) {
+void Router::Handle(Http::Request &req, Http::Response &res, std::function<void()> next)
+{
     size_t index = 0;
-    std::function<void()> callNext = [&]() {
-        if (index < handlers.size()) {
+    std::function<void()> callNext = [&]()
+    {
+        if (index < handlers.size())
+        {
             auto &handlerPair = handlers[index++];
             const std::string &handlerPath = handlerPair.first;
             IHandler *handler = handlerPair.second.get();
 
-            if (req.path == handlerPath) {
+            if (req.path == handlerPath || 
+                (req.path.length() > handlerPath.length() && 
+                 req.path.substr(0, handlerPath.length()) == handlerPath &&
+                 req.path[handlerPath.length()] == '/'))
+            {
                 std::string originalPath = req.path;
                 req.path = req.path.substr(handlerPath.length());
                 if (req.path.empty())
                     req.path = "/";
 
-                handler->Handle(req, res, [&, originalPath]() {
+                handler->Handle(req, res, [&, originalPath]()
+                                {
                     req.path = originalPath;
-                    callNext();
-                });
-            } else {
+                    callNext(); });
+            }
+            else
+            {
                 callNext();
             }
-        } else {
-            if (!dispatch(req, res)) {
+        }
+        else
+        {
+            if (!dispatch(req, res))
+            {
                 next();
             }
         }
     };
     callNext();
+}
+
+void Router::Group(const std::string &path, std::vector<std::reference_wrapper<IHandler>> middlewares, GroupHandler handler)
+{
+    
+}
+
+GroupBuilder Router::Group(std::string path) {
+    return GroupBuilder(*this, path);
 }

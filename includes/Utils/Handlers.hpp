@@ -8,6 +8,9 @@
 #include "Core/Http/Request/Request.hpp"
 #include "Core/Http/Request/Response.hpp"
 
+class Router;
+
 using RequestHandler = std::function<void(const Http::Request&, Http::Response&)>;
+using GroupHandler = std::function<void(Router&)>;
 
 #endif

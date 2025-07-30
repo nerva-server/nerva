@@ -35,6 +35,8 @@ int main()
 
         next(); });
 
+    server.Static("/static", "./public");
+
     Router router;
     router.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res)
                { res << 200 << "Test ID: " << req.getParam("id"); });

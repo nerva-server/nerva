@@ -11,6 +11,7 @@
 #include "Utils/ThreadSafeQueue.hpp"
 #include "Secure/Config/ServerConfig.hpp"
 #include "Core/Http/Router/Router.hpp"
+#include "Core/Http/Handler/StaticFileHandler.hpp"
 
 class Server : public Router
 {
@@ -20,6 +21,12 @@ public:
 
     void Start();
     void Stop();
+
+    void Static(const std::string &path, const std::string &directory)
+    {
+        auto handler = new StaticFileHandler(directory);
+        Use(path, *handler);
+    }
 
     static int initSocket(int port, int listenQueueSize);
 

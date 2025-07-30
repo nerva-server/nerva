@@ -5,3 +5,7 @@ UniqueRouter::UniqueRouter( std::string request_type, Router *r) : request_type(
 void UniqueRouter::Use(const std::string &path, std::vector<std::reference_wrapper<IHandler>> middlewares, const RequestHandler &handler) {
 	r->addRoute(middlewares, request_type, path, handler);
 }
+
+RouteBuilder UniqueRouter::Register(const std::string &path) {
+	return RouteBuilder(*r, request_type, path);
+}

@@ -63,6 +63,7 @@ void StaticFileHandler::Handle(Http::Request &req, Http::Response &res, std::fun
     }
 }
 
+
 std::string StaticFileHandler::getMimeType(const std::string &path)
 {
     size_t dotPos = path.find_last_of('.');
@@ -76,6 +77,35 @@ std::string StaticFileHandler::getMimeType(const std::string &path)
         }
     }
     return "application/octet-stream";
+}
+
+bool StaticFileHandler::SendFile(const std::string& filePath, Http::Response& res)
+{
+    struct stat buffer;
+    if (stat(filePath.c_str(), &buffer) != 0 || !S_ISREG(buffer.st_mode))
+    {
+        res << 404 << "File not found";
+        return false;
+    }
+
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file.is_open())
+    {
+        res << 403 << "Forbidden";
+        return false;
+    }
+
+    std::string content((std::istreambuf_iterator<char>(file)),
+                     std::istreambuf_iterator<char>());
+
+    StaticFileHandler tempHandler("");
+    std::string mimeType = tempHandler.getMimeType(filePath);
+
+    res.headers["Content-Type"] = mimeType;
+    res.headers["Content-Length"] = std::to_string(content.size());
+    res << 200 << content;
+
+    return true;
 }
 
 bool StaticFileHandler::fileExists(const std::string &path)

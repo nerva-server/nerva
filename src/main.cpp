@@ -37,6 +37,10 @@ int main()
 
     server.Static("/static", "./public");
 
+    server.Get("/ajpgtest").Then([](const Http::Request &req, Http::Response &res) {
+        res.SendFile("./public/a.jpg");
+    });
+
     Router router;
     router.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res)
                { res << 200 << "Test ID: " << req.getParam("id"); });
@@ -76,6 +80,10 @@ int main()
 
     server.Use("/asd", login);
     server.Use("/asd", router);
+
+    server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
+        res << 404 << "My 404 Handler";
+    });
 
     server.Start();
 

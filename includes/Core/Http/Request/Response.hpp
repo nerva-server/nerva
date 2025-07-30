@@ -40,7 +40,8 @@ namespace Http
             return *this;
         }
 
-        void MovedRedirect(std::string location) {
+        void MovedRedirect(std::string location)
+        {
             body = "";
 
             statusCode = 301;
@@ -49,14 +50,17 @@ namespace Http
             setHeader("Location", location);
         }
 
-        void TemporaryRedirect(std::string location) {
+        void TemporaryRedirect(std::string location)
+        {
             body = "";
-            
+
             statusCode = 302;
             statusMessage = "Found";
 
             setHeader("Location", location);
         }
+
+        void SendFile(std::string path);
 
         std::string detectContentType(const std::string &body) const
         {

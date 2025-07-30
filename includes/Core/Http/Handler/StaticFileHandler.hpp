@@ -1,17 +1,21 @@
 #ifndef STATIC_FILE_HANDLER_HPP
 #define STATIC_FILE_HANDLER_HPP
 
-#include "IHandler.hpp"
 #include <fstream>
 #include <sys/stat.h>
 #include <unordered_map>
+
+#include "IHandler.hpp"
 
 class StaticFileHandler : public IHandler
 {
 public:
     StaticFileHandler(const std::string &basePath);
+
     virtual void Handle(Http::Request &req, Http::Response &res, std::function<void()> next) override;
 
+    static bool SendFile(const std::string& filePath, Http::Response& res);
+    
 private:
     std::string basePath;
     std::unordered_map<std::string, std::string> mimeTypes;

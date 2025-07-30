@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "Utils/Handlers.hpp"
+#include "Utils/String.hpp"
 #include "Radix/RadixNode.hpp"
 #include "Core/Http/Handler/IHandler.hpp"
 

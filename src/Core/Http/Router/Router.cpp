@@ -52,7 +52,13 @@ RouteBuilder Router::Delete(const std::string path)
 bool Router::tryDispatch(const std::string &fullPath, Http::Request &req, Http::Response &res) const
 {
     std::map<std::string, std::string> params;
+
     auto result = routes.find(req.method, fullPath, params);
+
+    if (!result.has_value())
+    {
+        result = routes.find(req.method, "/*", params);
+    }
 
     if (result.has_value())
     {
@@ -103,42 +109,32 @@ bool Router::dispatch(Http::Request &req, Http::Response &res, const std::string
         return true;
     }
 
-    res << 404 << "Not Found";
     return false;
 }
 
-void Router::Handle(Http::Request &req, Http::Response &res, std::function<void()> next)
-{
+void Router::Handle(Http::Request &req, Http::Response &res, std::function<void()> next) {
     size_t index = 0;
-    std::function<void()> callNext = [&]()
-    {
-        if (index < handlers.size())
-        {
+    std::function<void()> callNext = [&]() {
+        if (index < handlers.size()) {
             auto &handlerPair = handlers[index++];
             const std::string &handlerPath = handlerPair.first;
             IHandler *handler = handlerPair.second.get();
 
-            if (req.path.rfind(handlerPath, 0) == 0)
-            {
+            if (req.path == handlerPath) {
                 std::string originalPath = req.path;
                 req.path = req.path.substr(handlerPath.length());
                 if (req.path.empty())
                     req.path = "/";
 
-                handler->Handle(req, res, [&, originalPath]()
-                                {
+                handler->Handle(req, res, [&, originalPath]() {
                     req.path = originalPath;
-                    callNext(); });
-            }
-            else
-            {
+                    callNext();
+                });
+            } else {
                 callNext();
             }
-        }
-        else
-        {
-            if (!dispatch(req, res))
-            {
+        } else {
+            if (!dispatch(req, res)) {
                 next();
             }
         }

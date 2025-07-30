@@ -52,6 +52,11 @@ int main()
                 const std::string jsonResponse = R"({"message": "Hello, B!"})";
                 res << 200 << Json::ParseAndReturnBody(jsonResponse); });
 
+    server["GET"].Use("/redirect", {login}, [](const Http::Request &req, Http::Response &res)
+                      { 
+                res.MovedRedirect("/redirect-1");
+            });
+
     server["GET"].Register("/registerTest").Use(login).Then([](const Http::Request &req, Http::Response &res)
                                                             {
         const std::string jsonResponse = R"({"message": "Hello, Register!"})";

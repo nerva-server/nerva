@@ -40,6 +40,24 @@ namespace Http
             return *this;
         }
 
+        void MovedRedirect(std::string location) {
+            body = "";
+
+            statusCode = 301;
+            statusMessage = "Moved Permanently";
+
+            setHeader("Location", location);
+        }
+
+        void TemporaryRedirect(std::string location) {
+            body = "";
+            
+            statusCode = 302;
+            statusMessage = "Found";
+
+            setHeader("Location", location);
+        }
+
         std::string detectContentType(const std::string &body) const
         {
             size_t start = body.find_first_not_of(" \t\n\r");

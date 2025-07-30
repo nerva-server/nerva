@@ -32,9 +32,9 @@ public:
     RouteBuilder Put(const std::string path);
     RouteBuilder Delete(const std::string path);
 
-    void Use(IHandler &handler)
+    void Use(const std::string &path, IHandler &handler)
     {
-        handlers.push_back(std::unique_ptr<IHandler>(&handler));
+        handlers.push_back({path, std::unique_ptr<IHandler>(&handler)});
     }
 
     UniqueRouter operator[](std::string request_type)
@@ -42,7 +42,7 @@ public:
         return UniqueRouter{request_type, this};
     };
 
-    bool dispatch(Http::Request &req, Http::Response &res) const;
+    bool dispatch(Http::Request &req, Http::Response &res, const std::string &basePath = "") const;
 
     virtual void Handle(Http::Request &req, Http::Response &res, std::function<void()> next) override;
 
@@ -52,9 +52,11 @@ private:
         return method + ":" + path;
     }
 
+    bool tryDispatch(const std::string &fullPath, Http::Request &req, Http::Response &res) const;
+
     RadixNode routes;
 
-    std::vector<std::unique_ptr<IHandler>> handlers;
+    std::vector<std::pair<std::string, std::unique_ptr<IHandler>>> handlers;
 };
 
 #endif

@@ -29,26 +29,30 @@ void Router::Delete(const std::string &path, const std::vector<std::reference_wr
     addRoute(middlewares, "DELETE", path, handler);
 }
 
-RouteBuilder Router::Get(const std::string path) {
+RouteBuilder Router::Get(const std::string path)
+{
     return RouteBuilder(*this, "GET", path);
 }
 
-RouteBuilder Router::Post(const std::string path) {
+RouteBuilder Router::Post(const std::string path)
+{
     return RouteBuilder(*this, "POST", path);
 }
 
-RouteBuilder Router::Put(const std::string path) {
+RouteBuilder Router::Put(const std::string path)
+{
     return RouteBuilder(*this, "PUT", path);
 }
 
-RouteBuilder Router::Delete(const std::string path) {
+RouteBuilder Router::Delete(const std::string path)
+{
     return RouteBuilder(*this, "DELETE", path);
 }
 
-bool Router::dispatch(Http::Request &req, Http::Response &res) const
+bool Router::tryDispatch(const std::string &fullPath, Http::Request &req, Http::Response &res) const
 {
     std::map<std::string, std::string> params;
-    auto result = routes.find(req.method, req.path, params);
+    auto result = routes.find(req.method, fullPath, params);
 
     if (result.has_value())
     {
@@ -80,11 +84,26 @@ bool Router::dispatch(Http::Request &req, Http::Response &res) const
         {
             handler(req, res);
         }
+        return true;
+    }
+    return false;
+}
 
+bool Router::dispatch(Http::Request &req, Http::Response &res, const std::string &basePath) const
+{
+    std::string fullPath = basePath + req.path;
+
+    if (tryDispatch(fullPath, req, res))
+    {
         return true;
     }
 
-    res.setStatus(404, "Not Found");
+    if (!basePath.empty() && tryDispatch(req.path, req, res))
+    {
+        return true;
+    }
+
+    res << 404 << "Not Found";
     return false;
 }
 
@@ -95,7 +114,26 @@ void Router::Handle(Http::Request &req, Http::Response &res, std::function<void(
     {
         if (index < handlers.size())
         {
-            handlers[index++]->Handle(req, res, callNext);
+            auto &handlerPair = handlers[index++];
+            const std::string &handlerPath = handlerPair.first;
+            IHandler *handler = handlerPair.second.get();
+
+            if (req.path.rfind(handlerPath, 0) == 0)
+            {
+                std::string originalPath = req.path;
+                req.path = req.path.substr(handlerPath.length());
+                if (req.path.empty())
+                    req.path = "/";
+
+                handler->Handle(req, res, [&, originalPath]()
+                                {
+                    req.path = originalPath;
+                    callNext(); });
+            }
+            else
+            {
+                callNext();
+            }
         }
         else
         {

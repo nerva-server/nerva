@@ -36,7 +36,7 @@ int main()
         next(); });
 
     Router router;
-    router.Get("/test/:id", {login}, [](const Http::Request &req, Http::Response &res)
+    router.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res)
                { res << 200 << "Test ID: " << req.getParam("id"); });
 
     server.Get("/", {}, [](const Http::Request &req, Http::Response &res)
@@ -67,7 +67,8 @@ int main()
         const std::string jsonResponse = R"({"message": "Hello, 123!"})";
         res << 200 << Json::ParseAndReturnBody(jsonResponse); });
 
-    server.Use(router);
+    server.Use("/asd", login);
+    server.Use("/asd", router);
 
     server.Start();
 

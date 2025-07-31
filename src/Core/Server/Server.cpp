@@ -1,7 +1,5 @@
 #include "Core/Server/Server.hpp"
 
-#include "Secure/Config/ServerConfig.hpp"
-
 #include <iostream>
 #include <cstring>
 #include <unistd.h>
@@ -31,9 +29,9 @@ void signalHandler(int signum)
     shutdownServer.store(true);
 }
 
-Server::Server(ServerConfig &config)
-    : config(config),
-      activeConnections(0)
+Server::Server(): 
+      activeConnections(0),
+      config("server.nrvcfg")
 {
     std::signal(SIGINT, signalHandler);
 }
@@ -134,11 +132,11 @@ void Server::acceptConnections()
         return;
     }
 
-    struct epoll_event events[config.MAX_EVENTS];
+    struct epoll_event events[config.getInt("max_events")];
 
     while (!shutdownServer)
     {
-        int numEvents = epoll_wait(epollFd, events, config.MAX_EVENTS, 0);
+        int numEvents = epoll_wait(epollFd, events, config.getInt("max_events"), 0);
         if (numEvents == -1)
         {
             if (errno == EINTR)
@@ -171,7 +169,7 @@ void Server::acceptConnections()
                     continue;
                 }
 
-                if (activeConnections >= config.MAX_CONNECTIONS)
+                if (activeConnections >= config.getInt("max_connections"))
                 {
                     close(clientSocket);
                     continue;
@@ -211,15 +209,19 @@ void Server::acceptConnections()
     close(epollFd);
 }
 
+void Server::SetConfigFile(std::string path) {
+    config = ConfigParser(path + ".nrvcfg");
+}
+
 void Server::handleClient(int clientSocket)
 {
     activeConnections++;
-    char buffer[config.BUFFER_SIZE];
+    char buffer[config.getInt("buffer_size")];
     try
     {
         while (!shutdownServer)
         {
-            int valread = read(clientSocket, buffer, config.BUFFER_SIZE);
+            int valread = read(clientSocket, buffer, config.getInt("buffer_size"));
             if (valread < 0)
             {
                 if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -235,7 +237,7 @@ void Server::handleClient(int clientSocket)
                 activeConnections--;
                 return;
             }
-            else if (valread == config.BUFFER_SIZE)
+            else if (valread == config.getInt("buffer_size"))
             {
                 std::cerr << "Buffer overflow detected, closing connection.\n";
                 close(clientSocket);
@@ -279,7 +281,7 @@ void Server::Start()
     if (cpuCount == 0)
         cpuCount = 4;
 
-    serverSocket = initSocket(config.PORT, config.ACCEPT_QUEUE_SIZE);
+    serverSocket = initSocket(config.getInt("port"), config.getInt("accept_queue_size"));
     if (serverSocket < 0)
     {
         std::cerr << "Failed to initialize server socket. Exiting.\n";
@@ -314,7 +316,7 @@ void Server::StartWorker()
         acceptThreads.emplace_back(&Server::acceptConnections, this);
     }
 
-    for (int i = 0; i < config.THREAD_POOL_SIZE; ++i)
+    for (int i = 0; i < config.getInt("thread_pool_size"); ++i)
     {
         threadPool.emplace_back([this]()
                                 {

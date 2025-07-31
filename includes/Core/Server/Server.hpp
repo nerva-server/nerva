@@ -8,15 +8,15 @@
 #include <netinet/in.h>
 #include <sys/epoll.h>
 
+#include "Secure/Config/ConfigParser.hpp"
 #include "Utils/ThreadSafeQueue.hpp"
-#include "Secure/Config/ServerConfig.hpp"
 #include "Core/Http/Router/Router.hpp"
 #include "Core/Http/Handler/StaticFileHandler.hpp"
 
 class Server : public Router
 {
 public:
-    Server(ServerConfig &config);
+    Server();
     ~Server();
 
     void Start();
@@ -28,13 +28,15 @@ public:
         Use(path, *handler);
     }
 
+    void SetConfigFile(std::string path);
+
     static int initSocket(int port, int listenQueueSize);
 
 private:
     int serverSocket;
     int epollFd;
 
-    ServerConfig config;
+    ConfigParser config;
 
     std::thread acceptThread;
 

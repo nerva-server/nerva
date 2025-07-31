@@ -11,7 +11,6 @@
 #include <system_error>
 #include <sstream>
 
-#include "Secure/Config/ServerConfig.hpp"
 #include "Core/Cluster/Cluster.hpp"
 #include "Core/Server/Server.hpp"
 #include "Utils/Json.hpp"
@@ -20,11 +19,10 @@
 
 int main()
 {
-    ServerConfig config;
+    Server server = Server();
+    server.SetConfigFile("server");
 
-    std::cout << "Server listening on port " << config.PORT << "...\n";
-
-    Server server = Server(config);
+    std::cout << "Server listening on port " << 8080 << "...\n";
 
     Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next)
                                            {

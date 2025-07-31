@@ -11,11 +11,9 @@
 #include <system_error>
 #include <sstream>
 
-#include "Core/Cluster/Cluster.hpp"
-#include "Core/Server/Server.hpp"
-#include "Utils/Json.hpp"
-#include "Core/Http/Middleware/Middleware.hpp"
-#include "ViewEngine/Engine.hpp"
+#include <nerva/Server.hpp>
+#include <nerva/Middleware.hpp>
+#include <nerva/Json.hpp>
 
 int main()
 {

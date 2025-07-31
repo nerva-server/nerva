@@ -2,7 +2,8 @@
 
 #include <iostream>
 
-Router::Router() {
+Router::Router()
+{
     keys["views"] = "./views";
 };
 
@@ -51,11 +52,13 @@ RouteBuilder Router::Delete(const std::string path)
     return RouteBuilder(*this, "DELETE", path);
 }
 
-void Router::Set(std::string key, std::string value) {
+void Router::Set(std::string key, std::string value)
+{
     keys[key] = value;
 }
 
-void Router::Set(std::string key, Nerva::TemplateEngine *value) {
+void Router::Set(std::string key, Nerva::TemplateEngine *value)
+{
     _engine = value;
 }
 
@@ -133,8 +136,8 @@ void Router::Handle(Http::Request &req, Http::Response &res, std::function<void(
             const std::string &handlerPath = handlerPair.first;
             IHandler *handler = handlerPair.second.get();
 
-            if (req.path == handlerPath || 
-                (req.path.length() > handlerPath.length() && 
+            if (req.path == handlerPath ||
+                (req.path.length() > handlerPath.length() &&
                  req.path.substr(0, handlerPath.length()) == handlerPath &&
                  req.path[handlerPath.length()] == '/'))
             {
@@ -166,9 +169,16 @@ void Router::Handle(Http::Request &req, Http::Response &res, std::function<void(
 
 void Router::Group(const std::string &path, std::vector<std::reference_wrapper<IHandler>> middlewares, GroupHandler handler)
 {
-    
+    GroupBuilder route(*this, path);
+
+    for (auto &middleware : middlewares) {
+        route.Use(middleware);
+    }
+
+    route.Then(handler);
 }
 
-GroupBuilder Router::Group(std::string path) {
+GroupBuilder Router::Group(std::string path)
+{
     return GroupBuilder(*this, path);
 }

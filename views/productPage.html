@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {{ include header }}
+    <title>{{ pageTitle }}</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f7f7f7; margin: 0; }
+        .app-header { background: #222; color: #fff; padding: 2rem 1rem 1rem 1rem; text-align: center; }
+        .promo-banner { background: #ff9800; color: #fff; padding: 0.5rem 1rem; margin: 1rem auto; border-radius: 6px; display: inline-block; font-weight: bold; }
+        .user-info { margin-top: 1rem; }
+        .badge.premium { background: #4caf50; color: #fff; padding: 0.2rem 0.7rem; border-radius: 12px; font-size: 0.9em; margin-left: 0.5rem; }
+        .product-list { max-width: 900px; margin: 2rem auto; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); padding: 2rem; }
+        .product-list h2 { margin-top: 0; }
+        .features { max-width: 900px; margin: 2rem auto; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); padding: 2rem; }
+        .features h3 { margin-top: 0; }
+        .features ul { list-style: none; padding: 0; }
+        .features li { padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+        .features li:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <h1>{{ pageTitle }}</h1>
+        {{ if showPromo }}
+        <div class="promo-banner">
+            {{ promoMessage }}
+        </div>
+        {{ endif }}
+        <div class="user-info">
+            <p>Welcome, {{ user.name }}!</p>
+            {{ if user.premium }}
+                <span class="badge premium">PREMIUM</span>
+            {{ endif }}
+        </div>
+    </header>
+    <main class="product-list">
+        <h2>Our Products</h2>
+        {{ for product in products }}
+            {{ include productCard with product }}
+        {{ endfor }}
+    </main>
+    <section class="features">
+        <h3>Our Advantages</h3>
+        <ul>
+            {{ for feature, index in features }}
+                <li>{{ index|add:1 }}. {{ feature }}</li>
+            {{ endfor }}
+        </ul>
+    </section>
+    {{ include footer }}
+</body>
+</html>

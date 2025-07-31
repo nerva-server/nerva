@@ -16,6 +16,7 @@
 #include "Core/Server/Server.hpp"
 #include "Utils/Json.hpp"
 #include "Core/Http/Middleware/Middleware.hpp"
+#include "ViewEngine/Engine.hpp"
 
 int main()
 {
@@ -26,14 +27,16 @@ int main()
     Server server = Server(config);
 
     Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next)
-                                  {
+                                           {
         std::string token = req.getQuery("token");
         if (token != "123") {
             res << 401 << "Unauthorized";
             return;
         } 
-        next(); 
-    });
+        next(); });
+
+    Nerva::Engine engine;
+    engine.setViewsDirectory("./views");
 
     server.Static("/static", "./public");
 
@@ -47,69 +50,65 @@ int main()
                { res << 200 << "Test ID: " << req.getParam("id"); });
 
     server.Post("/test", {}, [](const Http::Request &req, Http::Response &res)
-                              {
+                {
         const std::string jsonResponse = R"({"message": "Test POST successful!"})";
-        res << 200 << Json::ParseAndReturnBody(jsonResponse); 
-    });
+        res << 200 << Json::ParseAndReturnBody(jsonResponse); });
 
     server.Get("/image-test", {}, [](const Http::Request &req, Http::Response &res)
-                                 { res.SendFile("./public/a.jpg"); });
+               { res.SendFile("./public/a.jpg"); });
 
     server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res)
                       { 
                 const std::string jsonResponse = R"({"message": "Protected area - Welcome!"})";
-                res << 200 << Json::ParseAndReturnBody(jsonResponse); 
-    });
+                res << 200 << Json::ParseAndReturnBody(jsonResponse); });
 
     server["GET"].Use("/admin", {authMiddleware}, [](const Http::Request &req, Http::Response &res)
                       { 
                 const std::string jsonResponse = R"({"message": "Admin panel", "status": "active"})";
-                res << 200 << Json::ParseAndReturnBody(jsonResponse); 
-    });
+                res << 200 << Json::ParseAndReturnBody(jsonResponse); });
 
     server["GET"].Use("/redirect", {authMiddleware}, [](const Http::Request &req, Http::Response &res)
                       { res.MovedRedirect("/home"); });
 
     server["GET"].Register("/register-test").Use(authMiddleware).Then([](const Http::Request &req, Http::Response &res)
-                                                            {
+                                                                      {
         const std::string jsonResponse = R"({"message": "Register test successful!"})";
-        res << 200 << Json::ParseAndReturnBody(jsonResponse); 
-    });
+        res << 200 << Json::ParseAndReturnBody(jsonResponse); });
 
     server.Get("/secure")
         .Use(authMiddleware)
         .Then([](const Http::Request &req, Http::Response &res)
               {
         const std::string jsonResponse = R"({"message": "Secure area", "access": "granted"})";
-        res << 200 << Json::ParseAndReturnBody(jsonResponse); 
-    });
+        res << 200 << Json::ParseAndReturnBody(jsonResponse); });
 
     Router apiRouter;
     apiRouter.Get("/users", {}, [](const Http::Request &req, Http::Response &res)
                   { res << 200 << "User list"; });
-    
+
     apiRouter.Get("/users/:id", {}, [](const Http::Request &req, Http::Response &res)
                   { res << 200 << "User ID: " << req.getParam("id"); });
 
     server.Use("/api", apiRouter);
 
-    server.Group("/api/v1").Then([](Router &r) {
+    server.Group("/api/v1").Then([](Router &r)
+                                 {
         r.Get("/users").Then([](const Http::Request &req, Http::Response &res)
                             { res << 200 << "API v1 - Users"; });
         
         r.Get("/posts").Then([](const Http::Request &req, Http::Response &res)
-                            { res << 200 << "API v1 - Posts"; });
-    });
+                            { res << 200 << "API v1 - Posts"; }); });
 
-    server.Group("/admin").Then([](Router &r) {
+    server.Group("/admin").Then([](Router &r)
+                                {
         r.Get("/dashboard").Then([](const Http::Request &req, Http::Response &res)
                                 { res << 200 << "Admin Dashboard"; });
         
         r.Get("/settings").Then([](const Http::Request &req, Http::Response &res)
-                               { res << 200 << "Admin Settings"; });
-    });
+                               { res << 200 << "Admin Settings"; }); });
 
-    server.Group("/blog").Then([](Router &r) {
+    server.Group("/blog").Then([](Router &r)
+                               {
         r.Get("/posts").Then([](const Http::Request &req, Http::Response &res)
                             { res << 200 << "Blog Posts"; });
         
@@ -117,11 +116,49 @@ int main()
                                 { res << 200 << "Blog post ID: " << req.getParam("id"); });
         
         r.Get("/categories").Then([](const Http::Request &req, Http::Response &res)
-                                 { res << 200 << "Blog Categories"; });
+                                 { res << 200 << "Blog Categories"; }); });
+
+    server.Get("/products").Then([&engine](const Http::Request &req, Http::Response &res)
+    {
+        auto data = std::map<std::string, std::shared_ptr<Nerva::Value>>{
+            {"pageTitle", Nerva::createValue("Super Products")},
+            {"showPromo", Nerva::createValue(true)},
+            {"promoMessage", Nerva::createValue("TODAY'S SPECIAL DISCOUNT!")},
+            {"user", std::make_shared<Nerva::ObjectValue>(std::map<std::string, std::shared_ptr<Nerva::Value>>{
+                {"name", Nerva::createValue("Ayşe Demir")},
+                {"premium", Nerva::createValue(true)},
+                {"cartItems", Nerva::createValue("3")}})},
+            {"products", Nerva::createArray(std::vector<std::map<std::string, std::shared_ptr<Nerva::Value>>>{
+                {{"id", Nerva::createValue("101")},
+                 {"name", Nerva::createValue("Smartphone")},
+                 {"price", Nerva::createValue(7999.90)},
+                 {"inStock", Nerva::createValue(true)}},
+                {{"id", Nerva::createValue("205")},
+                 {"name", Nerva::createValue("Laptop")},
+                 {"price", Nerva::createValue(12499.99)},
+                 {"inStock", Nerva::createValue(false)}},
+                {{"id", Nerva::createValue("302")},
+                 {"name", Nerva::createValue("Wireless Headphones")},
+                 {"price", Nerva::createValue(1299.50)},
+                 {"inStock", Nerva::createValue(true)}}})},
+            {"features", Nerva::createArray(std::vector<std::string>{
+                "Fast Delivery",
+                "Free Returns",
+                "Original Product Guarantee"})}
+        };
+        auto context = Nerva::createContext(data);
+        std::string renderedHtml = engine.render("productPage", *context);
+        res.setHeader("Content-Type", "text/html; charset=UTF-8");
+        res << 200 << renderedHtml;
     });
 
-    server.Get("/*").Then([](const Http::Request &req, Http::Response &res)
-                          { res << 404 << "Page not found - 404"; });
+    server.Get("/*").Then([&engine](const Http::Request &req, Http::Response &res)
+    {
+        auto context = Nerva::createContext({});
+        std::string notFoundHtml = engine.render("notFound", *context);
+        res.setHeader("Content-Type", "text/html; charset=UTF-8");
+        res << 404 << notFoundHtml;
+    });
 
     server.Start();
     server.Stop();

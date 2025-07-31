@@ -1,6 +1,6 @@
 # Nerva HTTP Server
 
-A high-performance, multi-threaded HTTP server written in C++20 with modern features including middleware support, static file serving, JSON handling with simdjson and nlohmann/json, advanced template engine, and sophisticated routing capabilities.
+A high-performance, multi-threaded HTTP server written in C++20 with modern features including middleware support, static file serving, JSON handling with simdjson and nlohmann/json, advanced template engine, clustering capabilities, and sophisticated routing capabilities.
 
 ## Features
 
@@ -21,10 +21,14 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 - **Template Conditionals**: `{{ if }}` and `{{ endif }}` for conditional rendering
 - **Template Loops**: `{{ for }}` and `{{ endfor }}` for iterative rendering
 - **Template Filters**: Custom filters like `|formatPrice`, `|add:1` for data transformation
+- **Template Caching**: Compiled template caching for faster rendering
 - **Custom 404 Pages**: Render custom not found pages with templates
 - **Router Integration**: Modular API design with Router objects
 - **Group Routing**: Route grouping for API versioning and modular structure
 - **Memory Optimization**: tcmalloc integration for better memory management
+- **Clustering Support**: Fork-based worker processes for load distribution
+- **Configuration System**: Dynamic configuration with `.nrvcfg` files
+- **Library Build**: Shared library support with install system
 
 ## Quick Start
 
@@ -39,7 +43,14 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 ### Building
 
 ```bash
+# Build executable
 make
+
+# Build shared library
+make lib
+
+# Install library and headers
+make install
 ```
 
 ### Running
@@ -50,14 +61,45 @@ make run
 
 The server will start on port 8080 by default with tcmalloc preloaded for optimal performance.
 
+### Configuration
+
+Create a `server.nrvcfg` file for custom configuration:
+
+```cfg
+server {
+    port = 8080;
+    buffer_size = 4096;
+    thread_pool_size = 48;
+    keep_alive_timeout = default;
+    cluster_thread = 3;
+    max_connections = 500000;
+    accept_queue_size = 65535;
+    accept_retry_delay_ms = 10;
+    max_events = 8192;
+}
+```
+
 ## Usage Examples
 
 ### Basic Route
 
 ```cpp
-server.Get("/", {}, [](const Http::Request &req, Http::Response &res) {
-    res << 200 << "Home Page - Nerva HTTP Server";
-});
+#include <nerva/Server.hpp>
+#include <nerva/Middleware.hpp>
+#include <nerva/Json.hpp>
+
+int main() {
+    Server server = Server();
+    server.SetConfigFile("server");
+
+    server.Get("/", {}, [](const Http::Request &req, Http::Response &res) {
+        res << 200 << "Home Page - Nerva HTTP Server";
+    });
+
+    server.Start();
+    server.Stop();
+    return 0;
+}
 ```
 
 ### Route with Parameters
@@ -262,14 +304,35 @@ server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
 
 ## Configuration
 
-The server configuration is defined in `ServerConfig.hpp`:
+The server uses a custom configuration system with `.nrvcfg` files:
 
-- **PORT**: Server port (default: 8080)
-- **BUFFER_SIZE**: Request buffer size (default: 4096)
-- **THREAD_POOL_SIZE**: Number of worker threads (default: 48)
-- **KEEP_ALIVE_TIMEOUT**: Keep-alive timeout in seconds (default: 5)
-- **MAX_CONNECTIONS**: Maximum concurrent connections (default: 500000)
-- **ACCEPT_QUEUE_SIZE**: TCP accept queue size (default: 65535)
+### Configuration Parameters
+
+- **port**: Server port (default: 8080)
+- **buffer_size**: Request buffer size (default: 4096)
+- **thread_pool_size**: Number of worker threads (default: 48)
+- **keep_alive_timeout**: Keep-alive timeout in seconds (default: 5)
+- **cluster_thread**: Number of cluster worker processes (default: 3)
+- **max_connections**: Maximum concurrent connections (default: 500000)
+- **accept_queue_size**: TCP accept queue size (default: 65535)
+- **accept_retry_delay_ms**: Accept retry delay in milliseconds (default: 10)
+- **max_events**: Maximum epoll events (default: 8192)
+
+### Configuration File Format
+
+```cfg
+server {
+    port = 8080;
+    buffer_size = 4096;
+    thread_pool_size = 48;
+    keep_alive_timeout = default;
+    cluster_thread = 3;
+    max_connections = 500000;
+    accept_queue_size = 65535;
+    accept_retry_delay_ms = 10;
+    max_events = 8192;
+}
+```
 
 ## Project Structure
 
@@ -285,6 +348,7 @@ Nerva/
 │   │   │   └── Middleware/ # Middleware system
 │   │   └── Cluster/   # Clustering support
 │   ├── Secure/        # Security and configuration
+│   │   └── Config/    # Configuration parser
 │   ├── Utils/         # Utility functions
 │   ├── Radix/         # Radix tree implementation
 │   └── ViewEngine/    # Template engine system
@@ -296,6 +360,8 @@ Nerva/
 │   ├── productCard.html # Product card component
 │   ├── productPage.html # Product page template
 │   └── notFound.html  # 404 page template
+├── server.nrvcfg      # Server configuration file
+├── lib/               # Library build directory
 └── Makefile           # Build configuration
 ```
 
@@ -303,13 +369,15 @@ Nerva/
 
 ### Server Class
 
-- `Server(ServerConfig &config)`: Initialize server with configuration
+- `Server()`: Initialize server with default configuration
+- `Server(ServerConfig &config)`: Initialize server with custom configuration
 - `void Start()`: Start the server
 - `void Stop()`: Stop the server
 - `void Static(path, directory)`: Serve static files
 - `void Set(key, value)`: Set server options (e.g., view engine, views directory)
 - `void Use(path, Router)`: Mount a Router at a path
 - `Group(path)`: Start a route group for modular routing
+- `void SetConfigFile(path)`: Set configuration file path
 
 ### Router Methods
 
@@ -339,15 +407,24 @@ Nerva/
 ### Template Engine Features
 
 - **Include System**: `{{ include templateName }}`
+- **Include with Context**: `{{ include templateName with variable }}`
 - **Conditionals**: `{{ if condition }}...{{ endif }}`
 - **Loops**: `{{ for item in collection }}...{{ endfor }}`
 - **Filters**: `{{ value|filter:param }}`
 - **Data Binding**: Direct nlohmann::json object access
+- **Template Caching**: Automatic template caching for performance
 
 ### JSON Utilities
 
 - `Json::ParseAndReturnBody(jsonString)`: Parse and return JSON string using simdjson
 - `nlohmann::json`: Modern JSON library for template engine data binding
+
+### Clustering System
+
+- `Cluster`: Fork-based worker process management
+- `forkWorkers(serverSocket, cpuCount)`: Create worker processes
+- `sendShutdownSignal(workers)`: Graceful shutdown of workers
+- `waitForWorkers(workers)`: Wait for worker termination
 
 ## Performance
 
@@ -362,6 +439,8 @@ The server is optimized for high-performance scenarios:
 - **tcmalloc Integration**: High-performance memory allocator
 - **Template Caching**: Compiled template caching for faster rendering
 - **High-Performance JSON**: simdjson for fast JSON parsing
+- **Clustering**: Fork-based worker processes for load distribution
+- **Dynamic Configuration**: Runtime configuration loading
 
 ## Template Engine Architecture
 
@@ -372,8 +451,19 @@ The Nerva template engine provides:
 - **Conditional Rendering**: Dynamic content based on data
 - **Iterative Rendering**: Loop through collections and arrays
 - **Custom Filters**: Extensible filter system for data transformation
-- **Include System**: Template composition and reuse
+- **Include System**: Template composition and reuse with context passing
 - **CSS Integration**: Inline styling support in templates
+- **Template Caching**: Automatic caching for improved performance
+
+## Clustering Architecture
+
+The Nerva clustering system provides:
+
+- **Fork-based Workers**: Multiple worker processes for load distribution
+- **CPU-based Scaling**: Automatic worker count based on CPU cores
+- **Graceful Shutdown**: Proper signal handling and cleanup
+- **Process Management**: Automatic worker process lifecycle management
+- **Load Distribution**: Shared socket across worker processes
 
 ## JSON Libraries
 
@@ -381,6 +471,15 @@ The server uses two JSON libraries for different purposes:
 
 - **simdjson**: High-performance JSON parsing for `Json::ParseAndReturnBody()` function
 - **nlohmann/json**: Modern JSON library for template engine data binding and rendering
+
+## Build System
+
+The project supports multiple build targets:
+
+- **Executable**: `make` - Builds the main server executable
+- **Shared Library**: `make lib` - Builds `nerva.so` shared library
+- **Install**: `make install` - Installs library and headers to system
+- **Clean**: `make clean` - Removes build artifacts
 
 ## License
 

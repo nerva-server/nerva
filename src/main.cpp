@@ -17,6 +17,7 @@
 #include "Utils/Json.hpp"
 #include "Core/Http/Middleware/Middleware.hpp"
 #include "ViewEngine/Engine.hpp"
+#include "ViewEngine/EngineTestT.hpp"
 
 int main()
 {
@@ -35,10 +36,13 @@ int main()
         } 
         next(); });
 
-    Nerva::Engine engine;
-    engine.setViewsDirectory("./views");
-
     server.Static("/static", "./public");
+
+    Nerva::Engine *engine = new Nerva::Engine();
+    engine->setViewsDirectory("./views");
+
+    server.Set("views", "./views");
+    server.Set("view engine", engine);
 
     server.Get("/", {}, [](const Http::Request &req, Http::Response &res)
                { res << 200 << "Home Page - Nerva HTTP Server"; });
@@ -118,7 +122,7 @@ int main()
         r.Get("/categories").Then([](const Http::Request &req, Http::Response &res)
                                  { res << 200 << "Blog Categories"; }); });
 
-    server.Get("/products").Then([&engine](const Http::Request &req, Http::Response &res)
+    server.Get("/products").Then([](const Http::Request &req, Http::Response &res)
     {
         auto data = std::map<std::string, std::shared_ptr<Nerva::Value>>{
             {"pageTitle", Nerva::createValue("Super Products")},
@@ -146,18 +150,13 @@ int main()
                 "Free Returns",
                 "Original Product Guarantee"})}
         };
-        auto context = Nerva::createContext(data);
-        std::string renderedHtml = engine.render("productPage", *context);
-        res.setHeader("Content-Type", "text/html; charset=UTF-8");
-        res << 200 << renderedHtml;
+        
+        res.Render("productPage", data);
     });
 
-    server.Get("/*").Then([&engine](const Http::Request &req, Http::Response &res)
+    server.Get("/*").Then([](const Http::Request &req, Http::Response &res)
     {
-        auto context = Nerva::createContext({});
-        std::string notFoundHtml = engine.render("notFound", *context);
-        res.setHeader("Content-Type", "text/html; charset=UTF-8");
-        res << 404 << notFoundHtml;
+        res.Render("notFound", std::map<std::string, std::shared_ptr<Nerva::Value>>{});
     });
 
     server.Start();

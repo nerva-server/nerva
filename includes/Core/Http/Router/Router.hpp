@@ -12,6 +12,7 @@
 #include "Utils/String.hpp"
 #include "Radix/RadixNode.hpp"
 #include "Core/Http/Handler/IHandler.hpp"
+#include "ViewEngine/NervaEngine.hpp"
 
 #include "RouteBuilder.hpp"
 #include "GroupBuilder.hpp"
@@ -38,11 +39,17 @@ public:
 
     GroupBuilder Group(const std::string path);
 
+    void Set(std::string key, std::string value);
+    void Set(std::string key, Nerva::TemplateEngine *value);
+
+    std::unordered_map<std::string, std::string> keys;
+    Nerva::TemplateEngine* _engine = nullptr;
+
     void Use(const std::string &path, IHandler &handler)
     {
         handlers.push_back({path, std::unique_ptr<IHandler>(&handler)});
     }
-    
+
     void Use(const std::string &path, std::unique_ptr<IHandler> handler)
     {
         handlers.push_back({path, std::move(handler)});

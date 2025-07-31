@@ -2,7 +2,9 @@
 
 #include <iostream>
 
-Router::Router() = default;
+Router::Router() {
+    keys["views"] = "./views";
+};
 
 void Router::addRoute(const std::vector<std::reference_wrapper<IHandler>> &middlewares, const std::string &method, const std::string &path, const RequestHandler &handler)
 {
@@ -47,6 +49,14 @@ RouteBuilder Router::Put(const std::string path)
 RouteBuilder Router::Delete(const std::string path)
 {
     return RouteBuilder(*this, "DELETE", path);
+}
+
+void Router::Set(std::string key, std::string value) {
+    keys[key] = value;
+}
+
+void Router::Set(std::string key, Nerva::TemplateEngine *value) {
+    _engine = value;
 }
 
 bool Router::tryDispatch(const std::string &fullPath, Http::Request &req, Http::Response &res) const

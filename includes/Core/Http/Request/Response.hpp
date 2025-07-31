@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <regex>
 
+#include "ViewEngine/Engine.hpp"
+
 namespace Http
 {
     class Response
@@ -16,6 +18,9 @@ namespace Http
         std::string statusMessage = "OK";
         std::unordered_map<std::string, std::string> headers;
         std::string body;
+        std::string viewDir = "./views";
+
+        Nerva::TemplateEngine *_engine;
 
         void setStatus(int code, const std::string &message)
         {
@@ -38,6 +43,14 @@ namespace Http
         {
             body += str;
             return *this;
+        }
+
+        void Render(const std::string view, Nerva::Context context)
+        {
+            std::string viewContent = _engine->render(view, context);
+            setHeader("Content-Type", "text/html; charset=UTF-8");
+
+            body = viewContent;
         }
 
         void MovedRedirect(std::string location)

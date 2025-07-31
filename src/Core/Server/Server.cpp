@@ -255,6 +255,8 @@ void Server::handleClient(int clientSocket)
             }
 
             Http::Response res;
+            res._engine = _engine;
+            res.viewDir = keys["views"];
 
             this->Handle(req, res, []() {});
 

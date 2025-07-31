@@ -481,7 +481,7 @@ wrk -t6 -c2000 -d10s http://localhost:8080/test
 - **Threads**: 6 worker threads
 - **Connections**: 2000 concurrent connections
 - **Duration**: 10 seconds
-- **Target**: Simple JSON response endpoint
+- **Target**: 404 Not Found endpoint
 
 **Results:**
 ```

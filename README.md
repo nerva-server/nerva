@@ -1,13 +1,13 @@
 # Nerva HTTP Server
 
-A high-performance, multi-threaded HTTP server written in C++20 with modern features including middleware support, static file serving, JSON handling, advanced template engine with nlohmann/json, and sophisticated routing capabilities.
+A high-performance, multi-threaded HTTP server written in C++20 with modern features including middleware support, static file serving, JSON handling with simdjson and nlohmann/json, advanced template engine, and sophisticated routing capabilities.
 
 ## Features
 
 - **High Performance**: Multi-threaded architecture with epoll-based event handling
 - **Middleware Support**: Flexible middleware system for authentication and request processing
 - **Static File Serving**: Built-in static file handler for serving public assets
-- **JSON Support**: Integrated JSON parsing with nlohmann/json library
+- **JSON Support**: Integrated JSON parsing with simdjson for high-performance parsing and nlohmann/json for template engine data binding
 - **Route Parameters**: Dynamic route parameter extraction (e.g., `/test/:id`)
 - **Authentication**: Token-based authentication middleware
 - **Thread Pool**: Configurable thread pool for handling concurrent connections
@@ -32,7 +32,8 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 
 - C++20 compatible compiler (clang++ recommended)
 - Linux system (uses epoll)
-- nlohmann/json library
+- simdjson library (for high-performance JSON parsing)
+- nlohmann/json library (for template engine data binding)
 - tcmalloc (optional, for better performance)
 
 ### Building
@@ -67,7 +68,7 @@ server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res) {
 });
 ```
 
-### JSON Response (POST)
+### JSON Response (POST) with simdjson
 
 ```cpp
 server.Post("/test", {}, [](const Http::Request &req, Http::Response &res) {
@@ -345,8 +346,8 @@ Nerva/
 
 ### JSON Utilities
 
-- `Json::ParseAndReturnBody(jsonString)`: Parse and return JSON string
-- `nlohmann::json`: Modern JSON library for data binding
+- `Json::ParseAndReturnBody(jsonString)`: Parse and return JSON string using simdjson
+- `nlohmann::json`: Modern JSON library for template engine data binding
 
 ## Performance
 
@@ -360,6 +361,7 @@ The server is optimized for high-performance scenarios:
 - **Radix Tree Routing**: Fast route matching with parameter extraction
 - **tcmalloc Integration**: High-performance memory allocator
 - **Template Caching**: Compiled template caching for faster rendering
+- **High-Performance JSON**: simdjson for fast JSON parsing
 
 ## Template Engine Architecture
 
@@ -372,6 +374,13 @@ The Nerva template engine provides:
 - **Custom Filters**: Extensible filter system for data transformation
 - **Include System**: Template composition and reuse
 - **CSS Integration**: Inline styling support in templates
+
+## JSON Libraries
+
+The server uses two JSON libraries for different purposes:
+
+- **simdjson**: High-performance JSON parsing for `Json::ParseAndReturnBody()` function
+- **nlohmann/json**: Modern JSON library for template engine data binding and rendering
 
 ## License
 
@@ -388,7 +397,8 @@ See LICENSE file for details.
 
 - Linux (uses epoll)
 - C++20 compiler
-- nlohmann/json library
+- simdjson library (for high-performance JSON parsing)
+- nlohmann/json library (for template engine data binding)
 - tcmalloc (optional, for better performance)
 
 ---

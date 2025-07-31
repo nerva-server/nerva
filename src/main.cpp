@@ -17,7 +17,6 @@
 #include "Utils/Json.hpp"
 #include "Core/Http/Middleware/Middleware.hpp"
 #include "ViewEngine/Engine.hpp"
-#include "ViewEngine/EngineTestT.hpp"
 
 int main()
 {
@@ -41,7 +40,6 @@ int main()
     Nerva::Engine *engine = new Nerva::Engine();
     engine->setViewsDirectory("./views");
 
-    server.Set("views", "./views");
     server.Set("view engine", engine);
 
     server.Get("/", {}, [](const Http::Request &req, Http::Response &res)
@@ -123,41 +121,47 @@ int main()
                                  { res << 200 << "Blog Categories"; }); });
 
     server.Get("/products").Then([](const Http::Request &req, Http::Response &res)
-    {
-        auto data = std::map<std::string, std::shared_ptr<Nerva::Value>>{
-            {"pageTitle", Nerva::createValue("Super Products")},
-            {"showPromo", Nerva::createValue(true)},
-            {"promoMessage", Nerva::createValue("TODAY'S SPECIAL DISCOUNT!")},
-            {"user", std::make_shared<Nerva::ObjectValue>(std::map<std::string, std::shared_ptr<Nerva::Value>>{
-                {"name", Nerva::createValue("Ayşe Demir")},
-                {"premium", Nerva::createValue(true)},
-                {"cartItems", Nerva::createValue("3")}})},
-            {"products", Nerva::createArray(std::vector<std::map<std::string, std::shared_ptr<Nerva::Value>>>{
-                {{"id", Nerva::createValue("101")},
-                 {"name", Nerva::createValue("Smartphone")},
-                 {"price", Nerva::createValue(7999.90)},
-                 {"inStock", Nerva::createValue(true)}},
-                {{"id", Nerva::createValue("205")},
-                 {"name", Nerva::createValue("Laptop")},
-                 {"price", Nerva::createValue(12499.99)},
-                 {"inStock", Nerva::createValue(false)}},
-                {{"id", Nerva::createValue("302")},
-                 {"name", Nerva::createValue("Wireless Headphones")},
-                 {"price", Nerva::createValue(1299.50)},
-                 {"inStock", Nerva::createValue(true)}}})},
-            {"features", Nerva::createArray(std::vector<std::string>{
-                "Fast Delivery",
-                "Free Returns",
-                "Original Product Guarantee"})}
-        };
-        
-        res.Render("productPage", data);
-    });
+                                 {
+    nlohmann::json data = {
+        {"pageTitle", "Super Products"},
+        {"showPromo", true},
+        {"promoMessage", "TODAY'S SPECIAL DISCOUNT!"},
+        {"user", {
+            {"name", "Ayşe Demir"},
+            {"premium", true},
+            {"cartItems", "3"}
+        }},
+        {"products", {
+            {
+                {"id", "101"},
+                {"name", "Smartphone"},
+                {"price", 7999.90},
+                {"inStock", true}
+            },
+            {
+                {"id", "205"},
+                {"name", "Laptop"},
+                {"price", 12499.99},
+                {"inStock", false}
+            },
+            {
+                {"id", "302"},
+                {"name", "Wireless Headphones"},
+                {"price", 1299.50},
+                {"inStock", true}
+            }
+        }},
+        {"features", {
+            "Fast Delivery",
+            "Free Returns",
+            "Original Product Guarantee"
+        }}
+    };
+    
+    res.Render("productPage", data); });
 
     server.Get("/*").Then([](const Http::Request &req, Http::Response &res)
-    {
-        res.Render("notFound", std::map<std::string, std::shared_ptr<Nerva::Value>>{});
-    });
+                          { res.Render("notFound", nlohmann::json{}); });
 
     server.Start();
     server.Stop();

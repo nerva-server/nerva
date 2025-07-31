@@ -45,7 +45,7 @@ namespace Http
             return *this;
         }
 
-        void Render(const std::string view, Nerva::Context context)
+        void Render(const std::string view, const nlohmann::json &context)
         {
             std::string viewContent = _engine->render(view, context);
             setHeader("Content-Type", "text/html; charset=UTF-8");

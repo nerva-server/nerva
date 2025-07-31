@@ -1,16 +1,10 @@
 #include "ViewEngine/Engine.hpp"
-
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
-#include <stack>
-#include <cstring>
-#include <cmath>
-#include <iostream>
 
 namespace Nerva
 {
-
     void Engine::setViewsDirectory(const std::string &path)
     {
         viewsDir = std::filesystem::path(path);
@@ -20,7 +14,7 @@ namespace Nerva
         }
     }
 
-    std::string Engine::render(const std::string &templateName, const Context &context)
+    std::string Engine::render(const std::string &templateName, const json &context)
     {
         std::string templateContent = loadTemplate(templateName);
         return renderString(templateContent, context);
@@ -35,7 +29,6 @@ namespace Nerva
         }
 
         std::filesystem::path templatePath = viewsDir / (templateName + ".html");
-
         std::ifstream file(templatePath);
         if (!file.is_open())
         {
@@ -50,7 +43,7 @@ namespace Nerva
         return content;
     }
 
-    std::string Engine::renderString(const std::string &content, const Context &context)
+    std::string Engine::renderString(const std::string &content, const json &context)
     {
         std::string result;
         size_t pos = 0;
@@ -106,12 +99,11 @@ namespace Nerva
                     std::string templateName = expr.substr(8, withPos - 8);
                     std::string contextVar = expr.substr(withPos + 6);
 
-                    auto includeContext = resolvePath(contextVar, context.getData());
-                    if (includeContext && includeContext->isObject())
+                    json includeContext = resolvePath(contextVar, context);
+                    if (!includeContext.is_null())
                     {
-                        auto newData = context.getData();
-                        newData["it"] = includeContext;
-                        Context newContext(newData);
+                        json newContext = context;
+                        newContext["it"] = includeContext;
 
                         std::string included = loadTemplate(templateName);
                         result += renderString(included, newContext);
@@ -135,8 +127,8 @@ namespace Nerva
     }
 
     std::string Engine::processForLoop(const std::string &loopExpr,
-                                                     const std::string &loopContent,
-                                                     const Context &context)
+                                     const std::string &loopContent,
+                                     const json &context)
     {
         size_t inPos = loopExpr.find(" in ");
         if (inPos == std::string::npos)
@@ -150,13 +142,11 @@ namespace Nerva
         collectionName.erase(0, collectionName.find_first_not_of(" \t"));
         collectionName.erase(collectionName.find_last_not_of(" \t") + 1);
 
-        auto collection = resolvePath(collectionName, context.getData());
-        if (!collection || !collection->isArray())
+        json collection = resolvePath(collectionName, context);
+        if (!collection.is_array())
             return "";
 
         std::string result;
-        const auto &items = collection->getArray();
-
         bool hasIndex = varsPart.find(',') != std::string::npos;
         std::string itemVar, indexVar;
 
@@ -176,37 +166,39 @@ namespace Nerva
             itemVar = varsPart;
         }
 
-        for (size_t i = 0; i < items.size(); i++)
+        size_t i = 0;
+        for (auto& item : collection)
         {
-            auto newData = context.getData();
-            newData[itemVar] = items[i];
+            json newContext = context;
+            newContext[itemVar] = item;
 
             if (hasIndex)
             {
-                newData[indexVar] = createValue((double)i);
+                newContext[indexVar] = i;
             }
 
-            Context newContext(newData);
             result += renderString(loopContent, newContext);
+            i++;
         }
 
         return result;
     }
 
     std::string Engine::processIfCondition(const std::string &ifExpr,
-                                                         const std::string &ifContent,
-                                                         const Context &context)
+                                         const std::string &ifContent,
+                                         const json &context)
     {
         size_t condStart = ifExpr.find_first_not_of(" \t", 2);
         if (condStart == std::string::npos)
             return "";
 
         std::string condition = ifExpr.substr(condStart);
-        auto value = resolvePath(condition, context.getData());
+        json value = resolvePath(condition, context);
 
-        if (value && ((value->isBool() && value->getBool()) ||
-                      (value->isNumber() && value->getNumber() != 0) ||
-                      (value->isString() && !value->getString().empty())))
+        if (!value.is_null() && 
+            ((value.is_boolean() && value.get<bool>()) ||
+             (value.is_number() && value.get<double>() != 0) ||
+             (value.is_string() && !value.get<std::string>().empty())))
         {
             return renderString(ifContent, context);
         }
@@ -214,7 +206,7 @@ namespace Nerva
         return "";
     }
 
-    std::string Engine::evaluateExpression(const std::string &expr, const Context &context)
+    std::string Engine::evaluateExpression(const std::string &expr, const json &context)
     {
         if (expr.rfind("include", 0) == 0)
         {
@@ -242,8 +234,21 @@ namespace Nerva
             filter.erase(0, filter.find_first_not_of(" \t"));
             filter.erase(filter.find_last_not_of(" \t") + 1);
 
-            auto value = resolvePath(varName, context.getData());
-            std::string result = getValueAsString(value);
+            json value = resolvePath(varName, context);
+            std::string result;
+
+            if (value.is_boolean())
+            {
+                result = value.get<bool>() ? "true" : "false";
+            }
+            else if (value.is_number())
+            {
+                result = std::to_string(value.get<double>());
+            }
+            else if (value.is_string())
+            {
+                result = value.get<std::string>();
+            }
 
             if (filter == "formatPrice")
             {
@@ -273,63 +278,31 @@ namespace Nerva
         }
         else
         {
-            auto value = resolvePath(expr, context.getData());
-            return getValueAsString(value);
+            json value = resolvePath(expr, context);
+            
+            if (value.is_null()) return "";
+            if (value.is_boolean()) return value.get<bool>() ? "true" : "false";
+            if (value.is_number()) return std::to_string(value.get<double>());
+            if (value.is_string()) return value.get<std::string>();
+            if (value.is_object()) return "[object]";
+            if (value.is_array()) return "[array]";
+            
+            return "";
         }
     }
 
-    std::shared_ptr<Value> Engine::resolvePath(const std::string &path, const std::map<std::string, std::shared_ptr<Value>> &data)
+    json Engine::resolvePath(const std::string &path, const json &data)
     {
         size_t dotPos = path.find('.');
         if (dotPos == std::string::npos)
         {
-            auto it = data.find(path);
-            return it != data.end() ? it->second : createValue("");
+            return data.contains(path) ? data[path] : json();
         }
 
         std::string firstPart = path.substr(0, dotPos);
-        auto it = data.find(firstPart);
-        if (it == data.end() || !it->second->isObject())
-        {
-            return createValue("");
-        }
+        if (!data.contains(firstPart)) return json();
 
         std::string remainingPath = path.substr(dotPos + 1);
-        return resolvePath(remainingPath, it->second->getObject());
+        return resolvePath(remainingPath, data[firstPart]);
     }
-
-    std::string Engine::getValueAsString(const std::shared_ptr<Value> &value)
-    {
-        if (!value)
-            return "";
-
-        if (value->isBool())
-        {
-            return value->getBool() ? "true" : "false";
-        }
-        else if (value->isNumber())
-        {
-            double num = value->getNumber();
-            if (num == floor(num))
-            {
-                return std::to_string((int)num);
-            }
-            return std::to_string(num);
-        }
-        else if (value->isString())
-        {
-            return value->getString();
-        }
-        else if (value->isObject())
-        {
-            return "[object]";
-        }
-        else if (value->isArray())
-        {
-            return "[array]";
-        }
-
-        return "";
-    }
-
 }

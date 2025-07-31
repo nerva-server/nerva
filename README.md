@@ -1,6 +1,6 @@
 # Nerva HTTP Server
 
-A high-performance, multi-threaded HTTP server written in C++20 with modern features including middleware support, static file serving, and JSON handling.
+A high-performance, multi-threaded HTTP server written in C++20 with modern features including middleware support, static file serving, JSON handling, view engine (template) support, and advanced routing.
 
 ## Features
 
@@ -15,7 +15,11 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 - **File Serving**: Direct file serving with automatic MIME type detection
 - **HTTP Redirects**: Support for permanent (301) and temporary (302) redirects
 - **Wildcard Routes**: Catch-all routes for 404 handling and fallback patterns
-- **Enhanced Routing**: Advanced routing with method-specific handlers and chaining
+- **Enhanced Routing**: Advanced routing with method-specific handlers, chaining, and grouping
+- **View Engine Support**: Dynamic HTML rendering with template engine and data binding
+- **Custom 404 Pages**: Render custom not found pages with templates
+- **Router Integration**: Modular API design with Router objects
+- **Group Routing**: Route grouping for API versioning and modular structure
 
 ## Quick Start
 
@@ -45,7 +49,7 @@ The server will start on port 8080 by default.
 
 ```cpp
 server.Get("/", {}, [](const Http::Request &req, Http::Response &res) {
-    res << 200 << "Hello, World!";
+    res << 200 << "Home Page - Nerva HTTP Server";
 });
 ```
 
@@ -57,11 +61,11 @@ server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res) {
 });
 ```
 
-### JSON Response
+### JSON Response (POST)
 
 ```cpp
-server.Get("/api/data", {}, [](const Http::Request &req, Http::Response &res) {
-    const std::string jsonResponse = R"({"message": "Hello, API!"})";
+server.Post("/test", {}, [](const Http::Request &req, Http::Response &res) {
+    const std::string jsonResponse = R"({\"message\": \"Test POST successful!\"})";
     res << 200 << Json::ParseAndReturnBody(jsonResponse);
 });
 ```
@@ -69,7 +73,7 @@ server.Get("/api/data", {}, [](const Http::Request &req, Http::Response &res) {
 ### Middleware Authentication
 
 ```cpp
-Middleware login = Middleware([](Http::Request &req, Http::Response &res, auto next) {
+Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next) {
     std::string token = req.getQuery("token");
     if (token != "123") {
         res << 401 << "Unauthorized";
@@ -78,8 +82,8 @@ Middleware login = Middleware([](Http::Request &req, Http::Response &res, auto n
     next();
 });
 
-server.Get("/protected", {login}, [](const Http::Request &req, Http::Response &res) {
-    res << 200 << "Protected content";
+server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res) {
+    res << 200 << Json::ParseAndReturnBody(R"({\"message\": \"Protected area - Welcome!\"})");
 });
 ```
 
@@ -92,66 +96,103 @@ server.Static("/static", "./public");
 ### Direct File Serving
 
 ```cpp
-server.Get("/image").Then([](const Http::Request &req, Http::Response &res) {
-    res.SendFile("./public/image.jpg");
+server.Get("/image-test", {}, [](const Http::Request &req, Http::Response &res) {
+    res.SendFile("./public/a.jpg");
 });
 ```
 
-### HTTP Redirects
+### HTTP Redirects (with Middleware)
 
 ```cpp
-// Permanent redirect (301)
-server.Get("/old-page", {}, [](const Http::Request &req, Http::Response &res) {
-    res.MovedRedirect("/new-page");
-});
-
-// Temporary redirect (302)
-server.Get("/temp-page", {}, [](const Http::Request &req, Http::Response &res) {
-    res.TemporaryRedirect("/temporary-location");
+server["GET"].Use("/redirect", {authMiddleware}, [](const Http::Request &req, Http::Response &res) {
+    res.MovedRedirect("/home");
 });
 ```
 
-### Advanced Routing with Method-Specific Handlers
+### Advanced Routing: Register, Use, Then
 
 ```cpp
-// Method-specific routing
-server["GET"].Use("/api/data", {login}, [](const Http::Request &req, Http::Response &res) {
-    res << 200 << "GET data";
+server["GET"].Register("/register-test").Use(authMiddleware).Then([](const Http::Request &req, Http::Response &res) {
+    res << 200 << Json::ParseAndReturnBody(R"({\"message\": \"Register test successful!\"})");
 });
 
-// Chained routing with Register
-server["GET"].Register("/registerTest").Use(login).Then([](const Http::Request &req, Http::Response &res) {
-    res << 200 << "Registered route";
-});
-```
-
-### Wildcard Routes and 404 Handling
-
-```cpp
-// Catch-all route for 404 handling
-server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
-    res << 404 << "Page not found";
-});
-```
-
-### POST Request Handling
-
-```cpp
-server.Post("/api/submit", {}, [](const Http::Request &req, Http::Response &res) {
-    // Handle POST data
-    res << 200 << "Data received";
-});
+server.Get("/secure")
+    .Use(authMiddleware)
+    .Then([](const Http::Request &req, Http::Response &res) {
+        res << 200 << Json::ParseAndReturnBody(R"({\"message\": \"Secure area\", \"access\": \"granted\"})");
+    });
 ```
 
 ### Router Integration
 
 ```cpp
-Router router;
-router.Get("/router-test/:id", {}, [](const Http::Request &req, Http::Response &res) {
-    res << 200 << "Router test: " << req.getParam("id");
+Router apiRouter;
+apiRouter.Get("/users", {}, [](const Http::Request &req, Http::Response &res) {
+    res << 200 << "User list";
+});
+apiRouter.Get("/users/:id", {}, [](const Http::Request &req, Http::Response &res) {
+    res << 200 << "User ID: " << req.getParam("id");
+});
+server.Use("/api", apiRouter);
+```
+
+### Group Routing (API Versioning, Admin, Blog, etc.)
+
+```cpp
+server.Group("/api/v1").Then([](Router &r) {
+    r.Get("/users").Then([](const Http::Request &req, Http::Response &res) {
+        res << 200 << "API v1 - Users";
+    });
+    r.Get("/posts").Then([](const Http::Request &req, Http::Response &res) {
+        res << 200 << "API v1 - Posts";
+    });
 });
 
-server.Use("/api", router);
+server.Group("/admin").Then([](Router &r) {
+    r.Get("/dashboard").Then([](const Http::Request &req, Http::Response &res) {
+        res << 200 << "Admin Dashboard";
+    });
+    r.Get("/settings").Then([](const Http::Request &req, Http::Response &res) {
+        res << 200 << "Admin Settings";
+    });
+});
+```
+
+### View Engine: Dynamic HTML Rendering
+
+```cpp
+Nerva::Engine *engine = new Nerva::Engine();
+engine->setViewsDirectory("./views");
+server.Set("views", "./views");
+server.Set("view engine", engine);
+
+server.Get("/products").Then([](const Http::Request &req, Http::Response &res) {
+    auto data = std::map<std::string, std::shared_ptr<Nerva::Value>>{
+        {"pageTitle", Nerva::createValue("Super Products")},
+        {"showPromo", Nerva::createValue(true)},
+        {"promoMessage", Nerva::createValue("TODAY'S SPECIAL DISCOUNT!")},
+        {"user", std::make_shared<Nerva::ObjectValue>(std::map<std::string, std::shared_ptr<Nerva::Value>>{
+            {"name", Nerva::createValue("Ayşe Demir")},
+            {"premium", Nerva::createValue(true)},
+            {"cartItems", Nerva::createValue("3")}})},
+        {"products", Nerva::createArray(std::vector<std::map<std::string, std::shared_ptr<Nerva::Value>>>{
+            {{"id", Nerva::createValue("101")}, {"name", Nerva::createValue("Smartphone")}, {"price", Nerva::createValue(7999.90)}, {"inStock", Nerva::createValue(true)}},
+            {{"id", Nerva::createValue("205")}, {"name", Nerva::createValue("Laptop")}, {"price", Nerva::createValue(12499.99)}, {"inStock", Nerva::createValue(false)}},
+            {{"id", Nerva::createValue("302")}, {"name", Nerva::createValue("Wireless Headphones")}, {"price", Nerva::createValue(1299.50)}, {"inStock", Nerva::createValue(true)}}
+        })},
+        {"features", Nerva::createArray(std::vector<std::string>{
+            "Fast Delivery", "Free Returns", "Original Product Guarantee"})}
+    };
+    res.Render("productPage", data);
+});
+```
+
+### Custom 404 Page (Wildcard Route)
+
+```cpp
+server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
+    res.Render("notFound", std::map<std::string, std::shared_ptr<Nerva::Value>>{});
+});
 ```
 
 ## Configuration
@@ -183,7 +224,8 @@ Nerva/
 │   └── Radix/         # Radix tree implementation
 ├── src/               # Source files
 ├── public/            # Static files
-└── Makefile          # Build configuration
+├── views/             # HTML templates for view engine
+└── Makefile           # Build configuration
 ```
 
 ## API Reference
@@ -194,6 +236,9 @@ Nerva/
 - `void Start()`: Start the server
 - `void Stop()`: Stop the server
 - `void Static(path, directory)`: Serve static files
+- `void Set(key, value)`: Set server options (e.g., view engine, views directory)
+- `void Use(path, Router)`: Mount a Router at a path
+- `Group(path)`: Start a route group for modular routing
 
 ### Router Methods
 
@@ -202,6 +247,7 @@ Nerva/
 - `Use(path, middleware)`: Apply middleware to path
 - `Register(path)`: Register a route for chaining
 - `["METHOD"].Use(path, middleware, handler)`: Method-specific routing
+- `Then(handler)`: Chain handler after middleware or group
 
 ### Request Object
 
@@ -217,6 +263,7 @@ Nerva/
 - `MovedRedirect(location)`: Send 301 permanent redirect
 - `TemporaryRedirect(location)`: Send 302 temporary redirect
 - `setHeader(key, value)`: Set custom response header
+- `Render(view, data)`: Render a template with data (view engine)
 
 ### JSON Utilities
 

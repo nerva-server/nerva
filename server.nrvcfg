@@ -2,7 +2,7 @@ server {
     port = 8080;
     buffer_size = 4096;
     thread_pool_size = 48;
-    keep_alive_timeout = default;
+    keep_alive_timeout = 5;
     cluster_thread = 3;
     max_connections = 500000;
     accept_queue_size = 65535;

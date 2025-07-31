@@ -15,8 +15,12 @@ GroupBuilder &GroupBuilder::Use(IHandler &middleware)
 
 void GroupBuilder::Then(GroupHandler handler) {
     auto groupRouter = std::make_unique<Router>();
-    
     handler(*groupRouter);
-    
+
+    auto& routerRef = *groupRouter;
+    for(auto &middleware : middlewares) {
+        routerRef.Use(path, middleware);
+    }
+
     router.Use(path, std::move(groupRouter));
 }

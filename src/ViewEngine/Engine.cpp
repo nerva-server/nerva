@@ -1,7 +1,10 @@
 #include "ViewEngine/Engine.hpp"
+
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+
+#include "Core/Http/Request/Response.hpp"
 
 namespace Nerva
 {
@@ -14,10 +17,12 @@ namespace Nerva
         }
     }
 
-    std::string Engine::render(const std::string &templateName, const json &context)
+    void Engine::render(Http::Response &res, const std::string &templateName, const json &context)
     {
         std::string templateContent = loadTemplate(templateName);
-        return renderString(templateContent, context);
+
+        res.setHeader("Content-Type", "text/html; charset=UTF-8");
+        res.body = renderString(templateContent, context);
     }
 
     std::string Engine::loadTemplate(const std::string &templateName)
@@ -127,8 +132,8 @@ namespace Nerva
     }
 
     std::string Engine::processForLoop(const std::string &loopExpr,
-                                     const std::string &loopContent,
-                                     const json &context)
+                                       const std::string &loopContent,
+                                       const json &context)
     {
         size_t inPos = loopExpr.find(" in ");
         if (inPos == std::string::npos)
@@ -167,7 +172,7 @@ namespace Nerva
         }
 
         size_t i = 0;
-        for (auto& item : collection)
+        for (auto &item : collection)
         {
             json newContext = context;
             newContext[itemVar] = item;
@@ -185,8 +190,8 @@ namespace Nerva
     }
 
     std::string Engine::processIfCondition(const std::string &ifExpr,
-                                         const std::string &ifContent,
-                                         const json &context)
+                                           const std::string &ifContent,
+                                           const json &context)
     {
         size_t condStart = ifExpr.find_first_not_of(" \t", 2);
         if (condStart == std::string::npos)
@@ -195,7 +200,7 @@ namespace Nerva
         std::string condition = ifExpr.substr(condStart);
         json value = resolvePath(condition, context);
 
-        if (!value.is_null() && 
+        if (!value.is_null() &&
             ((value.is_boolean() && value.get<bool>()) ||
              (value.is_number() && value.get<double>() != 0) ||
              (value.is_string() && !value.get<std::string>().empty())))
@@ -279,14 +284,20 @@ namespace Nerva
         else
         {
             json value = resolvePath(expr, context);
-            
-            if (value.is_null()) return "";
-            if (value.is_boolean()) return value.get<bool>() ? "true" : "false";
-            if (value.is_number()) return std::to_string(value.get<double>());
-            if (value.is_string()) return value.get<std::string>();
-            if (value.is_object()) return "[object]";
-            if (value.is_array()) return "[array]";
-            
+
+            if (value.is_null())
+                return "";
+            if (value.is_boolean())
+                return value.get<bool>() ? "true" : "false";
+            if (value.is_number())
+                return std::to_string(value.get<double>());
+            if (value.is_string())
+                return value.get<std::string>();
+            if (value.is_object())
+                return "[object]";
+            if (value.is_array())
+                return "[array]";
+
             return "";
         }
     }
@@ -300,7 +311,8 @@ namespace Nerva
         }
 
         std::string firstPart = path.substr(0, dotPos);
-        if (!data.contains(firstPart)) return json();
+        if (!data.contains(firstPart))
+            return json();
 
         std::string remainingPath = path.substr(dotPos + 1);
         return resolvePath(remainingPath, data[firstPart]);

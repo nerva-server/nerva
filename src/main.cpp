@@ -97,6 +97,14 @@ int main()
         r.Get("/posts").Then([](const Http::Request &req, Http::Response &res)
                             { res << 200 << "API v1 - Posts"; }); });
 
+    server.Group("/testGroup", {}, [](Router &r)
+                 {
+        r.Get("/users").Then([](const Http::Request &req, Http::Response &res)
+                            { res << 200 << "API v1 - Users"; });
+        
+        r.Get("/posts").Then([](const Http::Request &req, Http::Response &res)
+                            { res << 200 << "API v1 - Posts"; }); });
+
     server.Group("/admin").Then([](Router &r)
                                 {
         r.Get("/dashboard").Then([](const Http::Request &req, Http::Response &res)

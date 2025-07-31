@@ -277,7 +277,7 @@ void Server::handleClient(int clientSocket)
 
 void Server::Start()
 {
-    int cpuCount = 6;
+    int cpuCount = config.getInt("cluster_thread");
     if (cpuCount == 0)
         cpuCount = 4;
 

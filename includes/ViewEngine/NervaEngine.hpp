@@ -2,8 +2,14 @@
 #define NERVA_ENGINE_HPP
 
 #include <nlohmann/json.hpp>
+
 #include <string>
 #include <memory>
+
+namespace Http
+{
+    class Response;
+}
 
 namespace Nerva
 {
@@ -13,7 +19,7 @@ namespace Nerva
     {
     public:
         virtual ~TemplateEngine() = default;
-        virtual std::string render(const std::string &templateName, const json &context) = 0;
+        virtual void render(Http::Response &res, const std::string &templateName, const json &context) = 0;
     };
 }
 

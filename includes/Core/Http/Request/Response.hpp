@@ -47,10 +47,7 @@ namespace Http
 
         void Render(const std::string view, const nlohmann::json &context)
         {
-            std::string viewContent = _engine->render(view, context);
-            setHeader("Content-Type", "text/html; charset=UTF-8");
-
-            body = viewContent;
+            _engine->render(*this, view, context);
         }
 
         void MovedRedirect(std::string location)

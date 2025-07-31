@@ -169,13 +169,16 @@ void Router::Handle(Http::Request &req, Http::Response &res, std::function<void(
 
 void Router::Group(const std::string &path, std::vector<std::reference_wrapper<IHandler>> middlewares, GroupHandler handler)
 {
-    GroupBuilder route(*this, path);
+    auto groupRouter = std::make_unique<Router>();
+    handler(*groupRouter);
 
-    for (auto &middleware : middlewares) {
-        route.Use(middleware);
+    auto &routerRef = *groupRouter;
+    for (auto &middleware : middlewares)
+    {
+        routerRef.Use(path, middleware);
     }
 
-    route.Then(handler);
+    Use(path, std::move(groupRouter));
 }
 
 GroupBuilder Router::Group(std::string path)

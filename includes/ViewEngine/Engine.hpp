@@ -2,6 +2,7 @@
 #define ENGINE_HPP
 
 #include "NervaEngine.hpp"
+
 #include <string>
 #include <map>
 #include <filesystem>
@@ -12,7 +13,7 @@ namespace Nerva
     {
     public:
         void setViewsDirectory(const std::string &path);
-        std::string render(const std::string &templateName, const json &context) override;
+        void render(Http::Response &res, const std::string &templateName, const json &context) override;
 
     private:
         std::filesystem::path viewsDir;

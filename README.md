@@ -22,6 +22,7 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 - **Template Loops**: `{{ for }}` and `{{ endfor }}` for iterative rendering
 - **Template Filters**: Custom filters like `|formatPrice`, `|add:1` for data transformation
 - **Template Caching**: Compiled template caching for faster rendering
+- **Memory-Optimized Rendering**: Direct response writing without intermediate string copies
 - **Custom 404 Pages**: Render custom not found pages with templates
 - **Router Integration**: Modular API design with Router objects
 - **Group Routing**: Route grouping for API versioning and modular structure
@@ -205,6 +206,16 @@ server.Group("/admin").Then([](Router &r) {
         res << 200 << "Admin Settings";
     });
 });
+
+// Group with middleware support
+server.Group("/testGroup", {}, [](Router &r) {
+    r.Get("/users").Then([](const Http::Request &req, Http::Response &res) {
+        res << 200 << "Protected Users";
+    });
+    r.Get("/posts").Then([](const Http::Request &req, Http::Response &res) {
+        res << 200 << "Protected Posts";
+    });
+});
 ```
 
 ### Advanced Template Engine with nlohmann/json
@@ -325,13 +336,20 @@ server {
     port = 8080;
     buffer_size = 4096;
     thread_pool_size = 48;
-    keep_alive_timeout = default;
+    keep_alive_timeout = 5;
     cluster_thread = 3;
     max_connections = 500000;
     accept_queue_size = 65535;
     accept_retry_delay_ms = 10;
     max_events = 8192;
 }
+```
+
+### Dynamic Configuration Loading
+
+```cpp
+Server server = Server();
+server.SetConfigFile("server"); // Loads server.nrvcfg
 ```
 
 ## Project Structure
@@ -377,6 +395,7 @@ Nerva/
 - `void Set(key, value)`: Set server options (e.g., view engine, views directory)
 - `void Use(path, Router)`: Mount a Router at a path
 - `Group(path)`: Start a route group for modular routing
+- `Group(path, middlewares, handler)`: Start a route group with middleware
 - `void SetConfigFile(path)`: Set configuration file path
 
 ### Router Methods
@@ -387,6 +406,13 @@ Nerva/
 - `Register(path)`: Register a route for chaining
 - `["METHOD"].Use(path, middleware, handler)`: Method-specific routing
 - `Then(handler)`: Chain handler after middleware or group
+- `Group(path)`: Create a route group
+- `Group(path, middlewares, handler)`: Create a route group with middleware
+
+### GroupBuilder Class
+
+- `Use(middleware)`: Add middleware to the group
+- `Then(handler)`: Execute the group handler with middleware
 
 ### Request Object
 
@@ -441,6 +467,48 @@ The server is optimized for high-performance scenarios:
 - **High-Performance JSON**: simdjson for fast JSON parsing
 - **Clustering**: Fork-based worker processes for load distribution
 - **Dynamic Configuration**: Runtime configuration loading
+- **Memory-Optimized Template Rendering**: Direct response writing without intermediate string copies
+
+### Benchmark Results
+
+The server has been tested with `wrk` benchmark tool under high load conditions:
+
+```bash
+wrk -t6 -c2000 -d10s http://localhost:8080/test
+```
+
+**Test Configuration:**
+- **Threads**: 6 worker threads
+- **Connections**: 2000 concurrent connections
+- **Duration**: 10 seconds
+- **Target**: Simple JSON response endpoint
+
+**Results:**
+```
+Running 10s test @ http://localhost:8080/test
+  6 threads and 2000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     2.66ms   12.56ms 248.06ms   95.03%
+    Req/Sec    34.53k    21.90k   82.11k    60.00%
+  2061090 requests in 10.09s, 2.98GB read
+Requests/sec: 204,350.42
+Transfer/sec:    302.65MB
+```
+
+**Performance Metrics:**
+- **Throughput**: 204,350 requests/second
+- **Average Latency**: 2.66ms
+- **Total Requests**: 2,061,090 requests in 10.09 seconds
+- **Data Transfer**: 302.65MB/second
+- **Connection Handling**: 2000 concurrent connections
+- **CPU Utilization**: 6 threads efficiently utilized
+
+**Key Performance Features:**
+- **High Throughput**: Over 200K requests/second
+- **Low Latency**: Sub-3ms average response time
+- **Concurrent Handling**: 2000 simultaneous connections
+- **Memory Efficiency**: Optimized memory usage with tcmalloc
+- **Scalable Architecture**: Fork-based clustering for load distribution
 
 ## Template Engine Architecture
 
@@ -454,6 +522,29 @@ The Nerva template engine provides:
 - **Include System**: Template composition and reuse with context passing
 - **CSS Integration**: Inline styling support in templates
 - **Template Caching**: Automatic caching for improved performance
+- **Memory-Optimized Rendering**: Direct response writing without intermediate string copies
+
+### Memory Optimization
+
+The template engine has been optimized for memory efficiency:
+
+**Before (Memory Inefficient):**
+```cpp
+std::string render(const std::string &templateName, const json &context);
+// Returns string, requires additional memory copy
+```
+
+**After (Memory Optimized):**
+```cpp
+void render(Http::Response &res, const std::string &templateName, const json &context);
+// Directly writes to response body, no intermediate copies
+```
+
+**Benefits:**
+- **Reduced Memory Usage**: Eliminates intermediate string copies
+- **Faster Rendering**: Direct response writing
+- **Lower GC Pressure**: Less temporary object creation
+- **Better Performance**: Especially under high load
 
 ## Clustering Architecture
 

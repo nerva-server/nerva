@@ -89,7 +89,7 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 
 2. **Clone and Build**
    ```bash
-   git clone https://github.com/yourusername/nerva.git
+   git clone https://github.com/wyrexdev/nerva.git
    cd nerva
    make
    ```
@@ -109,7 +109,7 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 5. **Create Your First Route**
    ```cpp
    // Edit src/main.cpp and add:
-   server.Get("/hello", {}, [](const Http::Request &req, Http::Response &res) {
+   server.Get("/hello", {}, [](const Http::Request &req, Http::Response &res, auto next) {
        res << 200 << "Hello, World!";
    });
    ```
@@ -166,7 +166,7 @@ sudo dnf install clang simdjson-devel nlohmann-json-devel openssl-devel gperftoo
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/nerva.git
+git clone https://github.com/wyrexdev/nerva.git
 cd nerva
 
 # Build the server
@@ -250,7 +250,7 @@ int main() {
     Server server = Server();
     server.SetConfigFile("server");
 
-    server.Get("/", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Get("/", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "Home Page - Nerva HTTP Server";
     });
 
@@ -263,7 +263,7 @@ int main() {
 ### Route with Parameters
 
 ```cpp
-server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res << 200 << "Test ID: " << req.getParam("id");
 });
 ```
@@ -271,7 +271,7 @@ server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res) {
 ### JSON Response (POST) with simdjson
 
 ```cpp
-server.Post("/test", {}, [](const Http::Request &req, Http::Response &res) {
+server.Post("/test", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     const std::string jsonResponse = R"({"message": "Test POST successful!"})";
     res << 200 << Json::ParseAndReturnBody(jsonResponse);
 });
@@ -289,7 +289,7 @@ Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &re
     next();
 });
 
-server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res) {
+server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res, auto next) {
     res << 200 << Json::ParseAndReturnBody(R"({"message": "Protected area - Welcome!"})");
 });
 ```
@@ -303,7 +303,7 @@ server.Static("/static", "./public");
 ### Direct File Serving
 
 ```cpp
-server.Get("/image-test", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/image-test", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res.SendFile("./public/a.jpg");
 });
 ```
@@ -311,7 +311,7 @@ server.Get("/image-test", {}, [](const Http::Request &req, Http::Response &res) 
 ### HTTP Redirects (with Middleware)
 
 ```cpp
-server["GET"].Use("/redirect", {authMiddleware}, [](const Http::Request &req, Http::Response &res) {
+server["GET"].Use("/redirect", {authMiddleware}, [](const Http::Request &req, Http::Response &res, auto next) {
     res.MovedRedirect("/home");
 });
 ```
@@ -319,13 +319,13 @@ server["GET"].Use("/redirect", {authMiddleware}, [](const Http::Request &req, Ht
 ### Advanced Routing: Register, Use, Then
 
 ```cpp
-server["GET"].Register("/register-test").Use(authMiddleware).Then([](const Http::Request &req, Http::Response &res) {
+server["GET"].Register("/register-test").Use(authMiddleware).Then([](const Http::Request &req, Http::Response &res, auto next) {
     res << 200 << Json::ParseAndReturnBody(R"({"message": "Register test successful!"})");
 });
 
 server.Get("/secure")
     .Use(authMiddleware)
-    .Then([](const Http::Request &req, Http::Response &res) {
+    .Then([](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << Json::ParseAndReturnBody(R"({"message": "Secure area", "access": "granted"})");
     });
 ```
@@ -334,10 +334,10 @@ server.Get("/secure")
 
 ```cpp
 Router apiRouter;
-apiRouter.Get("/users", {}, [](const Http::Request &req, Http::Response &res) {
+apiRouter.Get("/users", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res << 200 << "User list";
 });
-apiRouter.Get("/users/:id", {}, [](const Http::Request &req, Http::Response &res) {
+apiRouter.Get("/users/:id", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res << 200 << "User ID: " << req.getParam("id");
 });
 server.Use("/api", apiRouter);
@@ -347,29 +347,29 @@ server.Use("/api", apiRouter);
 
 ```cpp
 server.Group("/api/v1").Then([](Router &r) {
-    r.Get("/users").Then([](const Http::Request &req, Http::Response &res) {
+    r.Get("/users").Then([](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "API v1 - Users";
     });
-    r.Get("/posts").Then([](const Http::Request &req, Http::Response &res) {
+    r.Get("/posts").Then([](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "API v1 - Posts";
     });
 });
 
 server.Group("/admin").Then([](Router &r) {
-    r.Get("/dashboard").Then([](const Http::Request &req, Http::Response &res) {
+    r.Get("/dashboard").Then([](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "Admin Dashboard";
     });
-    r.Get("/settings").Then([](const Http::Request &req, Http::Response &res) {
+    r.Get("/settings").Then([](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "Admin Settings";
     });
 });
 
 // Group with middleware support
 server.Group("/testGroup", {}, [](Router &r) {
-    r.Get("/users").Then([](const Http::Request &req, Http::Response &res) {
+    r.Get("/users").Then([](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "Protected Users";
     });
-    r.Get("/posts").Then([](const Http::Request &req, Http::Response &res) {
+    r.Get("/posts").Then([](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "Protected Posts";
     });
 });
@@ -382,7 +382,7 @@ Nerva::Engine *engine = new Nerva::Engine();
 engine->setViewsDirectory("./views");
 server.Set("view engine", engine);
 
-server.Get("/products").Then([](const Http::Request &req, Http::Response &res) {
+server.Get("/products").Then([](const Http::Request &req, Http::Response &res, auto next) {
     nlohmann::json data = {
         {"pageTitle", "Super Products"},
         {"showPromo", true},
@@ -465,7 +465,7 @@ server.Get("/products").Then([](const Http::Request &req, Http::Response &res) {
 ### Custom 404 Page (Wildcard Route)
 
 ```cpp
-server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
+server.Get("/*").Then([](const Http::Request &req, Http::Response &res, auto next) {
     res.Render("notFound", nlohmann::json{});
 });
 ```
@@ -474,22 +474,22 @@ server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
 
 ```cpp
 // GET method
-server.Get("/users", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/users", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res << 200 << "User list";
 });
 
 // POST method
-server.Post("/users", {}, [](const Http::Request &req, Http::Response &res) {
+server.Post("/users", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res << 201 << "User created";
 });
 
 // PUT method
-server.Put("/users/:id", {}, [](const Http::Request &req, Http::Response &res) {
+server.Put("/users/:id", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res << 200 << "User updated: " << req.getParam("id");
 });
 
 // DELETE method
-server.Delete("/users/:id", {}, [](const Http::Request &req, Http::Response &res) {
+server.Delete("/users/:id", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res << 204 << "User deleted: " << req.getParam("id");
 });
 ```
@@ -497,13 +497,13 @@ server.Delete("/users/:id", {}, [](const Http::Request &req, Http::Response &res
 ### Content-Type Detection and Response Headers
 
 ```cpp
-server.Get("/api/data", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/api/data", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     // Automatic content-type detection
     res << 200 << R"({"message": "JSON response"})";
     // Will automatically set Content-Type: application/json
 });
 
-server.Get("/custom", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/custom", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res.setHeader("X-Custom-Header", "Custom Value");
     res.setHeader("Cache-Control", "no-cache");
     res << 200 << "Custom response with headers";
@@ -560,17 +560,17 @@ server.Static("/static", "./public");
 ### Advanced Response Features
 
 ```cpp
-server.Get("/download", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/download", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res.setHeader("Content-Disposition", "attachment; filename=file.pdf");
     res.setHeader("Cache-Control", "no-cache");
     res.SendFile("./files/document.pdf");
 });
 
-server.Get("/redirect-permanent", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/redirect-permanent", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res.MovedRedirect("/new-location");  // 301 redirect
 });
 
-server.Get("/redirect-temporary", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/redirect-temporary", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res.TemporaryRedirect("/temp-location");  // 302 redirect
 });
 ```
@@ -640,7 +640,7 @@ int Server::initSocket(int port, int listenQueueSize) {
 
 ```cpp
 // Set various types of cookies
-server.Get("/cookies", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/cookies", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     // Basic cookie
     Http::CookieOptions basicOpts;
     basicOpts.maxAge = std::chrono::hours(1);
@@ -674,7 +674,7 @@ server.Get("/cookies", {}, [](const Http::Request &req, Http::Response &res) {
 });
 
 // Remove cookie
-server.Get("/logout", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/logout", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     res.removeCookie("session_id");
     res.TemporaryRedirect("/login");
 });
@@ -694,7 +694,7 @@ std::map<std::string, std::string> users = {
 std::map<std::string, std::string> sessions;
 
 // Login page
-server.Get("/login", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/login", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     nlohmann::json data = {
         {"pageTitle", "Login - Nerva HTTP Server"},
         {"error", ""}
@@ -703,7 +703,7 @@ server.Get("/login", {}, [](const Http::Request &req, Http::Response &res) {
 });
 
 // Login form handler
-server.Post("/login", {}, [](const Http::Request &req, Http::Response &res) {
+server.Post("/login", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     std::string username = req.getFormData("username").value;
     std::string password = req.getFormData("password").value;
     
@@ -733,7 +733,7 @@ server.Post("/login", {}, [](const Http::Request &req, Http::Response &res) {
 });
 
 // Protected dashboard
-server.Get("/dashboard", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/dashboard", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     auto sessionId = res.getCookie("session_id");
     if (!sessionId || sessions.find(*sessionId) == sessions.end()) {
         res.TemporaryRedirect("/login");
@@ -755,7 +755,7 @@ server.Get("/dashboard", {}, [](const Http::Request &req, Http::Response &res) {
 
 ```cpp
 // Cookie management example
-server.Get("/cookie-manager", {}, [](const Http::Request &req, Http::Response &res) {
+server.Get("/cookie-manager", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     std::string action = req.getQuery("action");
     std::string name = req.getQuery("name");
     std::string value = req.getQuery("value");
@@ -789,13 +789,13 @@ int main() {
     engine->setViewsDirectory("./views");
     server.Set("view engine", engine);
 
-    server.Get("/", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Get("/", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "Home Page - Nerva HTTP Server";
     });
-    server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "Test ID: " << req.getParam("id");
     });
-    server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         auto fileData = req.getFormData("file");
         if (fileData.isFile && !fileData.file.empty()) {
             fileData.file.save("./public/" + fileData.filename);
@@ -812,17 +812,17 @@ int main() {
         }
         next();
     });
-    server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res) {
+    server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << Json::ParseAndReturnBody(R"({"message": "Protected area - Welcome!"})");
     });
-    server.Get("/products").Then([](const Http::Request &req, Http::Response &res) {
+    server.Get("/products").Then([](const Http::Request &req, Http::Response &res, auto next) {
         nlohmann::json data = {
             {"pageTitle", "Super Products"},
             {"products", {{{"id", "101"}, {"name", "Smartphone"}, {"price", 7999.90}, {"inStock", true}}}}
         };
         res.Render("productPage", data);
     });
-    server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
+    server.Get("/*").Then([](const Http::Request &req, Http::Response &res, auto next) {
         res.Render("notFound", nlohmann::json{});
     });
     server.Start();
@@ -1171,7 +1171,7 @@ sudo apt install clang-format clang-tidy
 #### Development Workflow
 ```bash
 # Clone and setup
-git clone https://github.com/yourusername/nerva.git
+git clone https://github.com/wyrexdev/nerva.git
 cd nerva
 
 # Create development branch
@@ -1433,7 +1433,7 @@ std::string sanitizeInput(const std::string& input) {
 #### File Upload Security
 ```cpp
 // Validate file uploads
-server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res) {
+server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res, auto next) {
     auto fileData = req.getFormData("file");
     
     // Check file size
@@ -1479,7 +1479,7 @@ We welcome contributions! Please follow these steps:
 
 1. **Fork the repository**
    ```bash
-   git clone https://github.com/yourusername/nerva.git
+   git clone https://github.com/wyrexdev/nerva.git
    cd nerva
    ```
 

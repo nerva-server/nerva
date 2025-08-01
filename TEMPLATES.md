@@ -323,9 +323,7 @@ server.Get("/products").Then([](const Http::Request &req, Http::Response &res) {
 ### 1. Template Caching
 
 ```cpp
-// Templates are automatically cached after first compilation
-engine->setCacheEnabled(true);
-engine->setCacheSize(1000); // Maximum cached templates
+Cooming Soon
 ```
 
 ### 2. Memory Optimization
@@ -333,16 +331,6 @@ engine->setCacheSize(1000); // Maximum cached templates
 ```cpp
 // Direct response writing without intermediate string copies
 void render(Http::Response &res, const std::string &templateName, const json &context);
-```
-
-### 3. Compilation Optimization
-
-```cpp
-// Templates are compiled once and reused
-class CompiledTemplate {
-    std::vector<TemplateToken> tokens;
-    std::map<std::string, size_t> variableMap;
-};
 ```
 
 ## Advanced Features

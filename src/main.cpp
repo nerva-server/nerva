@@ -211,9 +211,11 @@ int main()
     apiRouter.Get("/users", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "User list";
     });
+
     apiRouter.Get("/users/:id", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "User ID: " << req.getParam("id");
     });
+    
     server.Use("/api", apiRouter);
 
     server.Group("/api/v1").Then([](Router &r) {

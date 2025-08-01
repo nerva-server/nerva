@@ -79,11 +79,6 @@ std::optional<std::pair<RequestHandler, std::vector<std::reference_wrapper<IHand
     auto handlerIt = current->methodHandlers.find(method);
     if (handlerIt != current->methodHandlers.end() && !handlerIt->second.empty())
     {
-        if (!current->children.empty())
-        {
-            return std::nullopt;
-        }
-
         std::vector<std::reference_wrapper<IHandler>> middlewares;
         auto mwIt = current->methodMiddlewares.find(method);
         if (mwIt != current->methodMiddlewares.end())

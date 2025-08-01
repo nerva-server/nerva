@@ -11,9 +11,9 @@
 #include <system_error>
 #include <sstream>
 
-#include <nerva/Server.hpp>
-#include <nerva/Middleware.hpp>
-#include <nerva/Json.hpp>
+#include "Server.hpp"
+#include "Middleware.hpp"
+#include "Json.hpp"
 
 int main()
 {

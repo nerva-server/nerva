@@ -1,4 +1,4 @@
-#include "Core/Http/Handler/StaticFileHandler.hpp"
+#include "StaticFileHandler.hpp"
 
 #include <iostream>
 #include <fstream>

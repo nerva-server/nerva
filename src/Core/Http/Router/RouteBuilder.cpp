@@ -1,8 +1,8 @@
 #include <functional>
 
-#include "Core/Http/Router/RouteBuilder.hpp"
-#include "Core/Http/Router/Router.hpp"
-#include "Core/Http/Middleware/Middleware.hpp"
+#include "RouteBuilder.hpp"
+#include "Router.hpp"
+#include "Middleware.hpp"
 
 RouteBuilder::RouteBuilder(Router &router, std::string method, std::string path)
     : router(router), method(std::move(method)), path(std::move(path)) {}

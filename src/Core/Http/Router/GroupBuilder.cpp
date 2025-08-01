@@ -1,8 +1,8 @@
 #include <functional>
 
-#include "Core/Http/Router/GroupBuilder.hpp"
-#include "Core/Http/Router/Router.hpp"
-#include "Core/Http/Middleware/Middleware.hpp"
+#include "GroupBuilder.hpp"
+#include "Router.hpp"
+#include "Middleware.hpp"
 
 GroupBuilder::GroupBuilder(Router &router, std::string path)
     : router(router), path(std::move(path)) {}

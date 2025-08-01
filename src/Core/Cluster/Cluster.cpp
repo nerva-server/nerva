@@ -1,4 +1,4 @@
-#include "Core/Cluster/Cluster.hpp"
+#include "Cluster.hpp"
 
 #include <iostream>
 #include <unistd.h>

@@ -1,11 +1,10 @@
-#include "Radix/RadixNode.hpp"
+#include "RadixNode.hpp"
+#include "IHandler.hpp"
 
 #include <sstream>
 #include <utility>
 #include <algorithm>
 #include <stdexcept>
-
-#include "Core/Http/Handler/IHandler.hpp"
 
 RadixNode::RadixNode(std::string segment) : segment(std::move(segment)) {}
 RadixNode::~RadixNode() = default;

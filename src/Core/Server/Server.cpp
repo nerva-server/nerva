@@ -1,4 +1,6 @@
-#include "Core/Server/Server.hpp"
+#include "Server.hpp"
+#include "ThreadSafeQueue.hpp"
+#include "Cluster.hpp"
 
 #include <iostream>
 #include <cstring>
@@ -18,9 +20,6 @@
 #include <sys/wait.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
-
-#include "Utils/ThreadSafeQueue.hpp"
-#include "Core/Cluster/Cluster.hpp"
 
 std::atomic<bool> shutdownServer{false};
 

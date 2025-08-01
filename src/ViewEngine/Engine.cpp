@@ -1,10 +1,9 @@
-#include "ViewEngine/Engine.hpp"
+#include "Engine.hpp"
+#include "Response.hpp"
 
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
-
-#include "Core/Http/Request/Response.hpp"
 
 namespace Nerva
 {

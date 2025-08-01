@@ -1,5 +1,5 @@
 
-#include "Secure/Config/ConfigParser.hpp"
+#include "ConfigParser.hpp"
 
 #include <fstream>
 #include <sstream>

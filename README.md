@@ -2,6 +2,35 @@
 
 A high-performance, multi-threaded HTTP server written in C++20 with modern features including middleware support, static file serving, JSON handling with simdjson and nlohmann/json, advanced template engine, clustering capabilities, and sophisticated routing capabilities.
 
+## Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage Examples](#usage-examples)
+- [Template Engine](#template-engine)
+- [API Reference](#api-reference)
+- [Performance](#performance)
+- [Architecture](#architecture)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Quick Links
+
+- [🚀 Quick Start Guide](#quick-start)
+- [📦 Installation](#installation)
+- [⚙️ Configuration](#configuration)
+- [💡 Usage Examples](#usage-examples)
+- [🎨 Template Engine](#template-engine)
+- [🔧 API Reference](#api-reference)
+- [⚡ Performance](#performance)
+- [🏗️ Architecture](#architecture)
+- [🛠️ Development](#development)
+- [🔍 Troubleshooting](#troubleshooting)
+
 ## Features
 
 - **High Performance**: Multi-threaded architecture with epoll-based event handling
@@ -50,6 +79,41 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 - nlohmann/json library (for template engine data binding)
 - tcmalloc (optional, for better performance)
 
+### Getting Started in 5 Minutes
+
+1. **Install Dependencies**
+   ```bash
+   sudo apt update
+   sudo apt install clang++ libsimdjson-dev nlohmann-json3-dev libssl-dev libtcmalloc-minimal4 make
+   ```
+
+2. **Clone and Build**
+   ```bash
+   git clone https://github.com/yourusername/nerva.git
+   cd nerva
+   make
+   ```
+
+3. **Run the Server**
+   ```bash
+   make run
+   ```
+
+4. **Test the Server**
+   ```bash
+   # In another terminal
+   curl http://localhost:8080/
+   # Should return: "Home Page - Nerva HTTP Server"
+   ```
+
+5. **Create Your First Route**
+   ```cpp
+   // Edit src/main.cpp and add:
+   server.Get("/hello", {}, [](const Http::Request &req, Http::Response &res) {
+       res << 200 << "Hello, World!";
+   });
+   ```
+
 ### Building
 
 ```bash
@@ -70,6 +134,90 @@ make run
 ```
 
 The server will start on port 8080 by default with tcmalloc preloaded for optimal performance.
+
+## Installation
+
+### System Requirements
+
+- **Operating System**: Linux (uses epoll for event handling)
+- **Compiler**: C++20 compatible (clang++ 12+ or g++ 10+)
+- **Memory**: Minimum 512MB RAM, recommended 2GB+
+- **Storage**: 100MB free space for build artifacts
+
+### Dependencies Installation
+
+#### Ubuntu/Debian
+```bash
+sudo apt update
+sudo apt install clang++ libsimdjson-dev nlohmann-json3-dev libssl-dev libtcmalloc-minimal4
+```
+
+#### Arch Linux
+```bash
+sudo pacman -S clang simdjson nlohmann-json openssl gperftools
+```
+
+#### CentOS/RHEL/Fedora
+```bash
+sudo dnf install clang simdjson-devel nlohmann-json-devel openssl-devel gperftools-devel
+```
+
+### Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/nerva.git
+cd nerva
+
+# Build the server
+make
+
+# Build shared library (optional)
+make lib
+
+# Install system-wide (optional)
+sudo make install
+```
+
+### Docker Installation
+
+```dockerfile
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y \
+    clang++ \
+    libsimdjson-dev \
+    nlohmann-json3-dev \
+    libssl-dev \
+    libtcmalloc-minimal4 \
+    make \
+    git
+
+WORKDIR /app
+COPY . .
+
+RUN make
+
+EXPOSE 8080
+CMD ["./server"]
+```
+
+### Verification
+
+After installation, verify the server works:
+
+```bash
+# Start the server
+make run
+
+# In another terminal, test the server
+curl http://localhost:8080/
+# Should return: "Home Page - Nerva HTTP Server"
+
+# Test JSON endpoint
+curl -X POST http://localhost:8080/json
+# Should return: {"message": "JSON POST successful!"}
+```
 
 ### Configuration
 
@@ -699,6 +847,53 @@ The server uses a custom configuration system with `.nrvcfg` files:
 - **accept_retry_delay_ms**: Accept retry delay in milliseconds (default: 10)
 - **max_events**: Maximum epoll events (default: 8192)
 
+### Configuration Optimization
+
+#### High-Performance Configuration
+```cfg
+server {
+    port = 8080;
+    buffer_size = 8192;           # Larger buffer for high throughput
+    thread_pool_size = 64;        # More threads for high concurrency
+    keep_alive_timeout = 10;      # Longer keep-alive for better performance
+    cluster_thread = 4;           # More worker processes
+    max_connections = 1000000;    # Higher connection limit
+    accept_queue_size = 131072;   # Larger accept queue
+    accept_retry_delay_ms = 5;    # Faster retry
+    max_events = 16384;           # More epoll events
+}
+```
+
+#### Development Configuration
+```cfg
+server {
+    port = 8080;
+    buffer_size = 2048;           # Smaller buffer for development
+    thread_pool_size = 8;         # Fewer threads for debugging
+    keep_alive_timeout = 2;       # Shorter timeout for testing
+    cluster_thread = 1;           # Single worker process
+    max_connections = 1000;       # Lower connection limit
+    accept_queue_size = 1024;     # Smaller queue
+    accept_retry_delay_ms = 20;   # Slower retry
+    max_events = 1024;            # Fewer events
+}
+```
+
+#### Production Configuration
+```cfg
+server {
+    port = 80;                    # Standard HTTP port
+    buffer_size = 16384;          # Large buffer for production
+    thread_pool_size = 128;       # High thread count
+    keep_alive_timeout = 30;      # Long keep-alive
+    cluster_thread = 8;           # Multiple worker processes
+    max_connections = 2000000;    # Very high connection limit
+    accept_queue_size = 262144;   # Large accept queue
+    accept_retry_delay_ms = 1;    # Fast retry
+    max_events = 32768;           # High event limit
+}
+```
+
 ### Configuration File Format
 
 ```cfg
@@ -957,25 +1152,400 @@ The project supports multiple build targets:
 - **Install**: `make install` - Installs library and headers to system
 - **Clean**: `make clean` - Removes build artifacts
 
+## Development
+
+### Development Setup
+
+#### Prerequisites for Development
+```bash
+# Install development tools
+sudo apt install build-essential cmake valgrind gdb
+
+# Install additional development libraries
+sudo apt install libboost-all-dev libcurl4-openssl-dev
+
+# Install code formatting tools
+sudo apt install clang-format clang-tidy
+```
+
+#### Development Workflow
+```bash
+# Clone and setup
+git clone https://github.com/yourusername/nerva.git
+cd nerva
+
+# Create development branch
+git checkout -b feature/new-feature
+
+# Build with debug symbols
+make clean
+CXXFLAGS="-g -O0 -DDEBUG" make
+
+# Run with debugger
+gdb ./server
+
+# Run with valgrind for memory checking
+valgrind --leak-check=full --show-leak-kinds=all ./server
+```
+
+#### Code Style and Formatting
+```bash
+# Format code
+find src/ includes/ -name "*.cpp" -o -name "*.hpp" | xargs clang-format -i
+
+# Check code style
+find src/ includes/ -name "*.cpp" -o -name "*.hpp" | xargs clang-tidy
+```
+
+### Testing
+
+#### Unit Testing Setup
+```bash
+# Install testing framework
+sudo apt install libgtest-dev
+
+# Build and run tests
+make test
+```
+
+#### Integration Testing
+```bash
+# Install testing tools
+sudo apt install curl wrk ab
+
+# Run performance tests
+wrk -t6 -c2000 -d10s http://localhost:8080/test
+
+# Run Apache Bench tests
+ab -n 10000 -c 100 http://localhost:8080/test
+```
+
+#### Manual Testing
+```bash
+# Test basic functionality
+curl http://localhost:8080/
+curl -X POST http://localhost:8080/json
+curl http://localhost:8080/test/123
+
+# Test file upload
+curl -X POST -F "file=@test.txt" http://localhost:8080/upload
+
+# Test authentication
+curl "http://localhost:8080/protected?token=123"
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Build Issues
+
+**Problem**: Compilation fails with C++20 errors
+```bash
+error: 'concepts' is not a namespace-name
+```
+**Solution**: Ensure you have a C++20 compatible compiler
+```bash
+# Check compiler version
+clang++ --version
+# Should be clang++ 12+ or g++ 10+
+
+# Update compiler if needed
+sudo apt install clang-12
+```
+
+**Problem**: Missing simdjson library
+```bash
+fatal error: 'simdjson.h' file not found
+```
+**Solution**: Install simdjson development package
+```bash
+sudo apt install libsimdjson-dev
+```
+
+#### Runtime Issues
+
+**Problem**: Server fails to start with "Address already in use"
+```bash
+bind: Address already in use
+```
+**Solution**: Check if port is already in use and kill the process
+```bash
+# Find process using port 8080
+sudo lsof -i :8080
+
+# Kill the process
+sudo kill -9 <PID>
+
+# Or use a different port in server.nrvcfg
+```
+
+**Problem**: High memory usage
+```bash
+# Monitor memory usage
+htop
+# or
+ps aux | grep server
+```
+**Solution**: Adjust configuration parameters
+```cfg
+server {
+    thread_pool_size = 16;        # Reduce thread count
+    max_connections = 10000;      # Reduce connection limit
+    buffer_size = 2048;           # Reduce buffer size
+}
+```
+
+**Problem**: Server crashes with segmentation fault
+```bash
+# Run with gdb for debugging
+gdb ./server
+(gdb) run
+# When crash occurs, check backtrace
+(gdb) bt
+```
+
+#### Performance Issues
+
+**Problem**: Low throughput
+**Solution**: Optimize configuration
+```cfg
+server {
+    thread_pool_size = 64;        # Increase threads
+    buffer_size = 8192;           # Increase buffer
+    keep_alive_timeout = 10;      # Increase keep-alive
+}
+```
+
+**Problem**: High latency
+**Solution**: Check system resources and optimize
+```bash
+# Monitor CPU and memory
+top
+iostat
+vmstat
+
+# Optimize system settings
+echo 65535 > /proc/sys/net/core/somaxconn
+echo 1 > /proc/sys/net/ipv4/tcp_tw_reuse
+```
+
+### Debugging
+
+#### Enable Debug Logging
+```cpp
+// Add to your main.cpp
+#define DEBUG_MODE 1
+#include "Debug.hpp"
+
+// Enable debug output
+Debug::setLevel(DEBUG_LEVEL_VERBOSE);
+```
+
+#### Memory Leak Detection
+```bash
+# Run with valgrind
+valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./server
+
+# Run with AddressSanitizer
+CXXFLAGS="-fsanitize=address -g" make
+```
+
+#### Performance Profiling
+```bash
+# Install profiling tools
+sudo apt install perf
+
+# Profile the application
+perf record ./server
+perf report
+```
+
+### Logging and Monitoring
+
+#### Enable Request Logging
+```cpp
+// Add logging middleware
+Middleware loggingMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next) {
+    std::cout << "[" << std::time(nullptr) << "] " 
+              << req.method << " " << req.path 
+              << " - " << res.statusCode << std::endl;
+    next();
+});
+
+server.Use("/", {loggingMiddleware});
+```
+
+#### Monitor Server Health
+```bash
+# Check server status
+curl -I http://localhost:8080/
+
+# Monitor system resources
+htop
+iotop
+netstat -tulpn | grep 8080
+```
+
+## Architecture
+
+### System Architecture Overview
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Client        │    │   Load Balancer │    │   Nerva Server  │
+│   (Browser/App) │◄──►│   (Optional)    │◄──►│   (Master)      │
+└─────────────────┘    └─────────────────┘    └─────────┬───────┘
+                                                       │ fork()
+                                                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Worker Process │    │  Worker Process │    │  Worker Process │
+│   (Thread Pool) │    │   (Thread Pool) │    │   (Thread Pool) │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### Component Architecture
+
+#### Request Flow
+```
+1. Client Request → 2. epoll Event → 3. Accept Thread → 4. Thread Pool → 5. Router → 6. Middleware → 7. Handler → 8. Response
+```
+
+#### Memory Management
+- **tcmalloc**: High-performance memory allocator
+- **Template Caching**: Compiled template storage
+- **Direct Response Writing**: No intermediate buffers
+- **Connection Pooling**: Reuse connections
+
+### Security Considerations
+
+#### Input Validation
+```cpp
+// Always validate user input
+std::string sanitizeInput(const std::string& input) {
+    // Remove potentially dangerous characters
+    std::string sanitized = input;
+    // Implementation details...
+    return sanitized;
+}
+```
+
+#### File Upload Security
+```cpp
+// Validate file uploads
+server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res) {
+    auto fileData = req.getFormData("file");
+    
+    // Check file size
+    if (fileData.file.size() > MAX_FILE_SIZE) {
+        res << 413 << "File too large";
+        return;
+    }
+    
+    // Check file type
+    if (!isAllowedFileType(fileData.filename)) {
+        res << 400 << "File type not allowed";
+        return;
+    }
+    
+    // Save file safely
+    std::string safePath = sanitizePath("./uploads/" + fileData.filename);
+    fileData.file.save(safePath);
+});
+```
+
+#### Authentication Best Practices
+```cpp
+// Use secure session management
+Middleware secureAuth = Middleware([](Http::Request &req, Http::Response &res, auto next) {
+    auto sessionId = res.getSignedCookie("session", SECRET_KEY);
+    if (!sessionId || !isValidSession(*sessionId)) {
+        res << 401 << "Unauthorized";
+        return;
+    }
+    next();
+});
+```
+
 ## License
 
-See LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+We welcome contributions! Please follow these steps:
+
+### Development Process
+
+1. **Fork the repository**
+   ```bash
+   git clone https://github.com/yourusername/nerva.git
+   cd nerva
+   ```
+
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+
+3. **Make your changes**
+   - Follow the coding style guidelines
+   - Add tests for new features
+   - Update documentation
+
+4. **Test your changes**
+   ```bash
+   make clean && make
+   make test
+   ```
+
+5. **Submit a pull request**
+   - Provide a clear description of changes
+   - Include any relevant issue numbers
+   - Ensure all tests pass
+
+### Code Style Guidelines
+
+- Use C++20 features appropriately
+- Follow consistent naming conventions
+- Add comments for complex logic
+- Keep functions small and focused
+- Use meaningful variable names
+
+### Testing Guidelines
+
+- Write unit tests for new features
+- Ensure existing tests pass
+- Add integration tests for API changes
+- Test performance impact of changes
 
 ## Requirements
 
-- Linux (uses epoll)
-- C++20 compiler
-- simdjson library (for high-performance JSON parsing)
-- nlohmann/json library (for template engine data binding)
-- tcmalloc (optional, for better performance)
+### System Requirements
+- **Operating System**: Linux (uses epoll for event handling)
+- **Architecture**: x86_64, ARM64
+- **Memory**: Minimum 512MB RAM, recommended 2GB+
+- **Storage**: 100MB free space for build artifacts
+
+### Software Requirements
+- **Compiler**: C++20 compatible (clang++ 12+ or g++ 10+)
+- **Libraries**: 
+  - simdjson (for high-performance JSON parsing)
+  - nlohmann/json (for template engine data binding)
+  - OpenSSL (for cryptographic functions)
+  - tcmalloc (optional, for better performance)
+
+### Development Requirements
+- **Build Tools**: make, cmake
+- **Debugging**: gdb, valgrind
+- **Testing**: curl, wrk, ab
+- **Code Quality**: clang-format, clang-tidy
 
 ---
 
-**Made with ❤️ and ☕** 
+**Made with ❤️ and ☕**
+
+For more detailed documentation, see:
+- [Architecture Documentation](ARCHITECTURE.md)
+- [Template Engine Documentation](TEMPLATES.md)
+- [API Reference](docs/API.md) 

@@ -1548,4 +1548,3 @@ We welcome contributions! Please follow these steps:
 For more detailed documentation, see:
 - [Architecture Documentation](ARCHITECTURE.md)
 - [Template Engine Documentation](TEMPLATES.md)
-- [API Reference](docs/API.md) 

@@ -73,6 +73,7 @@ bool Router::tryDispatch(const std::string &fullPath, Http::Request &req, Http::
         result = routes.find(req.method, "/*", params);
     }
 
+
     if (result.has_value())
     {
         auto [firstHandler, middlewares] = result.value();
@@ -86,6 +87,35 @@ bool Router::tryDispatch(const std::string &fullPath, Http::Request &req, Http::
         
         if (allHandlers.empty())
         {
+            auto wildcardResult = routes.find(req.method, "/*", params);
+            if (wildcardResult.has_value())
+            {
+                auto [wildcardHandler, wildcardMiddlewares] = wildcardResult.value();
+                
+                for (const auto &[key, value] : params)
+                {
+                    req.params[key] = value;
+                }
+
+                size_t middlewareIndex = 0;
+                
+                std::function<void()> next = [&]()
+                {
+                    if (middlewareIndex < wildcardMiddlewares.size())
+                    {
+                        auto &mw = wildcardMiddlewares[middlewareIndex++].get();
+                        mw.Handle(req, res, next);
+                    }
+                    else
+                    {
+                        wildcardHandler(req, res, next);
+                    }
+                };
+                
+                next();
+                return true;
+            }
+            
             return false;
         }
 

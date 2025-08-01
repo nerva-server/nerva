@@ -57,7 +57,7 @@ int main()
     server.Post("/login", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         std::string username = req.getFormData("username").value;
         std::string password = req.getFormData("password").value;
-        
+
         if (users.find(username) != users.end() && users[username] == password) {
             std::string sessionId = "sess_" + std::to_string(std::time(nullptr)) + "_" + username;
             sessions[sessionId] = username;
@@ -297,6 +297,7 @@ int main()
         res << 200 << "Welcome to protected area! Token was valid.";
     });
 
+    // Catch-all route for 404 - must be the last route
     server.Get("/*").Then([](const Http::Request &req, Http::Response &res, auto next) {
         res.Render("notFound", nlohmann::json{});
     });

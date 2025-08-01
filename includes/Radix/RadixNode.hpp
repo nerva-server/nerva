@@ -28,8 +28,10 @@ private:
     std::unordered_map<std::string, std::vector<std::reference_wrapper<IHandler>>> methodMiddlewares;
 
     bool isParam() const;
+    bool isWildcard() const;
     RadixNode *findChild(const std::string &seg) const;
     RadixNode *findParamChild() const;
+    RadixNode *findWildcardChild() const;
 
     static std::vector<std::string> split(const std::string &path);
 };

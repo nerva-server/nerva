@@ -1,6 +1,7 @@
 #include "RadixNode.hpp"
 #include "IHandler.hpp"
 
+#include <iostream>
 #include <sstream>
 #include <utility>
 #include <algorithm>
@@ -15,6 +16,7 @@ void RadixNode::insert(const std::vector<std::reference_wrapper<IHandler>> &midd
                        const RequestHandler &handler)
 {
     auto segments = split(path);
+
     RadixNode *current = this;
 
     for (const auto &seg : segments)
@@ -38,19 +40,38 @@ void RadixNode::insert(const std::vector<std::reference_wrapper<IHandler>> &midd
 std::optional<std::pair<RequestHandler, std::vector<std::reference_wrapper<IHandler>>>> RadixNode::find(const std::string &method, const std::string &path, std::map<std::string, std::string> &params) const
 {
     auto segments = split(path);
+
     const RadixNode *current = this;
+    bool exactMatch = true;
 
     for (const auto &seg : segments)
     {
         const RadixNode *next = current->findChild(seg);
         if (!next)
         {
+            next = current->findWildcardChild();
+            if (next)
+            {
+                auto handlerIt = next->methodHandlers.find(method);
+                if (handlerIt != next->methodHandlers.end() && !handlerIt->second.empty())
+                {
+                    std::vector<std::reference_wrapper<IHandler>> middlewares;
+                    auto mwIt = next->methodMiddlewares.find(method);
+                    if (mwIt != next->methodMiddlewares.end())
+                    {
+                        middlewares = mwIt->second;
+                    }
+                    return std::make_pair(handlerIt->second[0], middlewares);
+                }
+            }
+
             next = current->findParamChild();
             if (!next)
                 return std::nullopt;
 
             std::string paramName = next->segment.substr(1);
             params[paramName] = seg;
+            exactMatch = false;
         }
         current = next;
     }
@@ -58,6 +79,11 @@ std::optional<std::pair<RequestHandler, std::vector<std::reference_wrapper<IHand
     auto handlerIt = current->methodHandlers.find(method);
     if (handlerIt != current->methodHandlers.end() && !handlerIt->second.empty())
     {
+        if (!current->children.empty())
+        {
+            return std::nullopt;
+        }
+
         std::vector<std::reference_wrapper<IHandler>> middlewares;
         auto mwIt = current->methodMiddlewares.find(method);
         if (mwIt != current->methodMiddlewares.end())
@@ -81,9 +107,21 @@ std::vector<RequestHandler> RadixNode::getAllHandlers(const std::string &method,
         const RadixNode *next = current->findChild(seg);
         if (!next)
         {
+            next = current->findWildcardChild();
+            if (next)
+            {
+                auto handlerIt = next->methodHandlers.find(method);
+                if (handlerIt != next->methodHandlers.end())
+                {
+                    return handlerIt->second;
+                }
+            }
+
             next = current->findParamChild();
             if (!next)
+            {
                 return {};
+            }
         }
         current = next;
     }
@@ -102,11 +140,16 @@ bool RadixNode::isParam() const
     return !segment.empty() && segment[0] == ':';
 }
 
+bool RadixNode::isWildcard() const
+{
+    return segment == "*";
+}
+
 RadixNode *RadixNode::findChild(const std::string &seg) const
 {
     for (const auto &child : children)
     {
-        if (child->segment == seg && !child->isParam())
+        if (child->segment == seg && !child->isParam() && !child->isWildcard())
         {
             return child.get();
         }
@@ -120,6 +163,18 @@ RadixNode *RadixNode::findParamChild() const
     {
         if (child->isParam())
             return child.get();
+    }
+    return nullptr;
+}
+
+RadixNode *RadixNode::findWildcardChild() const
+{
+    for (const auto &child : children)
+    {
+        if (child->isWildcard())
+        {
+            return child.get();
+        }
     }
     return nullptr;
 }

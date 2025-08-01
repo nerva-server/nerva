@@ -10,7 +10,8 @@
 
 class Router;
 
-using RequestHandler = std::function<void(const Http::Request&, Http::Response&)>;
+using NextFunction = std::function<void()>;
+using RequestHandler = std::function<void(const Http::Request&, Http::Response&, NextFunction)>;
 using GroupHandler = std::function<void(Router&)>;
 
 #endif

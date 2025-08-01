@@ -1,5 +1,3 @@
-// Nerva HTTP Server - Demo Application
-// A clean and well-documented main file demonstrating all features
 #include <iostream>
 #include <vector>
 #include <thread>
@@ -19,46 +17,36 @@
 #include "Json.hpp"
 #include "ViewEngine/NervaEngine.hpp"
 
-// Simple user database (in real app, use proper database)
 std::map<std::string, std::string> users = {
     {"admin", "password123"},
     {"user1", "password456"},
     {"demo", "demo123"}
 };
 
-// Simple session storage (in real app, use Redis or database)
 std::map<std::string, std::string> sessions;
 
 int main()
 {
-    // Server and configuration
     Server server;
     server.SetConfigFile("server");
     std::cout << "Server listening on port " << 8080 << "...\n";
 
-    // Static file serving
     server.Static("/static", "./public");
 
-    // Template engine integration
     Nerva::Engine *engine = new Nerva::Engine();
     engine->setViewsDirectory("./views");
     server.Set("view engine", engine);
 
-    // Basic route
-    server.Get("/", {}, [](const Http::Request &req, Http::Response &res) {
-        // Check if user is logged in via cookie
+    server.Get("/", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         auto sessionId = res.getCookie("session_id");
         if (sessionId && sessions.find(*sessionId) != sessions.end()) {
-            // User is logged in, redirect to dashboard
             res.TemporaryRedirect("/dashboard");
         } else {
-            // User not logged in, show login page
             res.TemporaryRedirect("/login");
         }
     });
 
-    // Login page
-    server.Get("/login", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Get("/login", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         nlohmann::json data = {
             {"pageTitle", "Login - Nerva HTTP Server"},
             {"error", ""}
@@ -66,30 +54,25 @@ int main()
         res.Render("login", data);
     });
 
-    // Login form handler
-    server.Post("/login", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Post("/login", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         std::string username = req.getFormData("username").value;
         std::string password = req.getFormData("password").value;
 
         std::cout << username << " a "  << password;
         
-        // Check credentials
         if (users.find(username) != users.end() && users[username] == password) {
-            // Generate session ID
             std::string sessionId = "sess_" + std::to_string(std::time(nullptr)) + "_" + username;
             sessions[sessionId] = username;
             
-            // Set secure cookie
             Http::CookieOptions cookieOpts;
-            cookieOpts.maxAge = std::chrono::hours(24); // 24 hours
+            cookieOpts.maxAge = std::chrono::hours(24);
             cookieOpts.httpOnly = true;
-            cookieOpts.secure = false; // Set to true in production with HTTPS
+            cookieOpts.secure = false;
             cookieOpts.sameSite = "Lax";
             
             res.setCookie("session_id", sessionId, cookieOpts);
             res.TemporaryRedirect("/dashboard");
         } else {
-            // Invalid credentials
             nlohmann::json data = {
                 {"pageTitle", "Login - Nerva HTTP Server"},
                 {"error", "Invalid username or password"}
@@ -98,8 +81,7 @@ int main()
         }
     });
 
-    // Dashboard (protected by cookie authentication)
-    server.Get("/dashboard", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Get("/dashboard", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         auto sessionId = res.getCookie("session_id");
         if (!sessionId || sessions.find(*sessionId) == sessions.end()) {
             res.TemporaryRedirect("/login");
@@ -116,8 +98,7 @@ int main()
         res.Render("dashboard", data);
     });
 
-    // Logout
-    server.Get("/logout", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Get("/logout", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         auto sessionId = res.getCookie("session_id");
         if (sessionId) {
             sessions.erase(*sessionId);
@@ -126,9 +107,7 @@ int main()
         res.TemporaryRedirect("/login");
     });
 
-    // Cookie examples
-    server.Get("/cookies", {}, [](const Http::Request &req, Http::Response &res) {
-        // Set various types of cookies
+    server.Get("/cookies", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         Http::CookieOptions basicOpts;
         basicOpts.maxAge = std::chrono::hours(1);
         res.setCookie("basic_cookie", "Hello World", basicOpts);
@@ -136,7 +115,7 @@ int main()
         Http::CookieOptions secureOpts;
         secureOpts.maxAge = std::chrono::hours(2);
         secureOpts.httpOnly = true;
-        secureOpts.secure = false; // Set to true in production
+        secureOpts.secure = false; 
         res.setSignedCookie("secure_cookie", "Secret Data", "my-secret-key", secureOpts);
         
         Http::CookieOptions sessionOpts;
@@ -145,7 +124,6 @@ int main()
         sessionOpts.sameSite = "Strict";
         res.setCookie("session_cookie", "User Session Data", sessionOpts);
         
-        // Read cookies
         std::string basicValue = res.getCookieValue("basic_cookie", "Not Set");
         auto secureValue = res.getSignedCookie("secure_cookie", "my-secret-key");
         
@@ -156,7 +134,6 @@ int main()
             {"allCookies", nlohmann::json::object()}
         };
         
-        // Add all incoming cookies to data
         for (const auto& [name, value] : res.incomingCookies) {
             data["allCookies"][name] = value;
         }
@@ -164,8 +141,7 @@ int main()
         res.Render("cookies", data);
     });
 
-    // Cookie management example
-    server.Get("/cookie-manager", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Get("/cookie-manager", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         std::string action = req.getQuery("action");
         std::string name = req.getQuery("name");
         std::string value = req.getQuery("value");
@@ -181,15 +157,13 @@ int main()
         res.TemporaryRedirect("/cookies");
     });
 
-    // Dynamic parameter route
-    server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         Http::CookieOptions secureOpts;
         res.setSignedCookie("secure", "ITS VERY SAFE", "123", secureOpts);
         res << 200 << "Test ID: " << req.getParam("id") << " Cookie: " << res.getSignedCookie("secure", "123").value_or("");
     });
 
-    // File upload (multipart/form-data) example
-    server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         auto fileData = req.getFormData("file");
         if (fileData.isFile && !fileData.file.empty()) {
             fileData.file.save("./public/" + fileData.filename);
@@ -199,18 +173,15 @@ int main()
         }
     });
 
-    // JSON response example
-    server.Post("/json", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Post("/json", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         const std::string jsonResponse = R"({"message": "JSON POST successful!"})";
         res << 200 << Json::ParseAndReturnBody(jsonResponse);
     });
 
-    // Direct static file serving
-    server.Get("/image-test", {}, [](const Http::Request &req, Http::Response &res) {
+    server.Get("/image-test", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         res.SendFile("./public/a.jpg");
     });
 
-    // Middleware-protected route
     Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next) {
         std::string token = req.getQuery("token");
         if (token != "123") {
@@ -220,71 +191,64 @@ int main()
         next();
     });
 
-    server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res) {
+    server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << Json::ParseAndReturnBody(R"({"message": "Protected area - Welcome!"})");
     });
 
-    // Redirect example
-    server["GET"].Use("/redirect", {authMiddleware}, [](const Http::Request &req, Http::Response &res) {
+    server["GET"].Use("/redirect", {authMiddleware}, [](const Http::Request &req, Http::Response &res, auto next) {
         res.MovedRedirect("/home");
     });
 
-    // Route chaining and group route examples
-    server["GET"].Register("/register-test").Use(authMiddleware).Then([](const Http::Request &req, Http::Response &res) {
+    server["GET"].Register("/register-test").Use(authMiddleware).Then([](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << Json::ParseAndReturnBody(R"({"message": "Register test successful!"})");
     });
 
     server.Get("/secure")
         .Use(authMiddleware)
-        .Then([](const Http::Request &req, Http::Response &res) {
+        .Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << Json::ParseAndReturnBody(R"({"message": "Secure area", "access": "granted"})");
         });
 
-    // API Router example
     Router apiRouter;
-    apiRouter.Get("/users", {}, [](const Http::Request &req, Http::Response &res) {
+    apiRouter.Get("/users", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "User list";
     });
-    apiRouter.Get("/users/:id", {}, [](const Http::Request &req, Http::Response &res) {
+    apiRouter.Get("/users/:id", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         res << 200 << "User ID: " << req.getParam("id");
     });
     server.Use("/api", apiRouter);
 
-    // Group route (API v1)
     server.Group("/api/v1").Then([](Router &r) {
-        r.Get("/users").Then([](const Http::Request &req, Http::Response &res) {
+        r.Get("/users").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "API v1 - Users";
         });
-        r.Get("/posts").Then([](const Http::Request &req, Http::Response &res) {
+        r.Get("/posts").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "API v1 - Posts";
         });
     });
 
-    // Admin panel group route
     server.Group("/admin").Then([](Router &r) {
-        r.Get("/dashboard").Then([](const Http::Request &req, Http::Response &res) {
+        r.Get("/dashboard").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "Admin Dashboard";
         });
-        r.Get("/settings").Then([](const Http::Request &req, Http::Response &res) {
+        r.Get("/settings").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "Admin Settings";
         });
     });
 
-    // Blog group route
     server.Group("/blog").Then([](Router &r) {
-        r.Get("/posts").Then([](const Http::Request &req, Http::Response &res) {
+        r.Get("/posts").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "Blog Posts";
         });
-        r.Get("/posts/:id").Then([](const Http::Request &req, Http::Response &res) {
+        r.Get("/posts/:id").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "Blog post ID: " << req.getParam("id");
         });
-        r.Get("/categories").Then([](const Http::Request &req, Http::Response &res) {
+        r.Get("/categories").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "Blog Categories";
         });
     });
 
-    // Dynamic page rendering with template engine
-    server.Get("/products").Then([](const Http::Request &req, Http::Response &res) {
+    server.Get("/products").Then([](const Http::Request &req, Http::Response &res, auto next) {
         nlohmann::json data = {
             {"pageTitle", "Super Products"},
             {"showPromo", true},
@@ -304,12 +268,41 @@ int main()
         res.Render("productPage", data);
     });
 
-    // Custom 404 (catch-all)
-    server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
+    server.Get("/middleware-demo", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+        std::cout << "First middleware: Logging request to " << req.path << std::endl;
+        next(); 
+    });
+
+    server.Get("/middleware-demo", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+        std::cout << "Second middleware: Adding custom header" << std::endl;
+        res.setHeader("X-Custom-Header", "Nerva-Server");
+        next();
+    });
+
+    server.Get("/middleware-demo", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+        std::cout << "Final handler: Sending response" << std::endl;
+        res << 200 << "Middleware demo completed! Check console for logs.";
+    });
+
+    server.Get("/auth-demo", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+        std::string token = req.getQuery("token");
+        if (token == "secret123") {
+            std::cout << "Authentication successful" << std::endl;
+            next();
+        } else {
+            std::cout << "Authentication failed" << std::endl;
+            res << 401 << "Unauthorized - Invalid token";
+        }
+    });
+
+    server.Get("/auth-demo", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+        res << 200 << "Welcome to protected area! Token was valid.";
+    });
+
+    server.Get("/*").Then([](const Http::Request &req, Http::Response &res, auto next) {
         res.Render("notFound", nlohmann::json{});
     });
 
-    // Start the server
     server.Start();
     server.Stop();
     return 0;

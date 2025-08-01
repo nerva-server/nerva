@@ -75,34 +75,38 @@ bool Router::tryDispatch(const std::string &fullPath, Http::Request &req, Http::
 
     if (result.has_value())
     {
-        auto [handler, middlewares] = result.value();
+        auto [firstHandler, middlewares] = result.value();
 
         for (const auto &[key, value] : params)
         {
             req.params[key] = value;
         }
 
-        if (!middlewares.empty())
+        auto allHandlers = routes.getAllHandlers(req.method, fullPath);
+        
+        if (allHandlers.empty())
         {
-            size_t current = 0;
-            std::function<void()> next = [&]()
+            return false;
+        }
+
+        size_t handlerIndex = 0;
+        size_t middlewareIndex = 0;
+        
+        std::function<void()> next = [&]()
+        {
+            if (middlewareIndex < middlewares.size())
             {
-                if (current < middlewares.size())
-                {
-                    auto &mw = middlewares[current++].get();
-                    mw.Handle(req, res, next);
-                }
-                else
-                {
-                    handler(req, res);
-                }
-            };
-            next();
-        }
-        else
-        {
-            handler(req, res);
-        }
+                auto &mw = middlewares[middlewareIndex++].get();
+                mw.Handle(req, res, next);
+            }
+            else if (handlerIndex < allHandlers.size())
+            {
+                auto handler = allHandlers[handlerIndex++];
+                handler(req, res, next);
+            }
+        };
+        
+        next();
         return true;
     }
     return false;

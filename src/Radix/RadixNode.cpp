@@ -28,7 +28,7 @@ void RadixNode::insert(const std::vector<std::reference_wrapper<IHandler>> &midd
         current = child;
     }
 
-    current->methodHandlers[method] = handler;
+    current->methodHandlers[method].push_back(handler);
     if (!middlewares.empty())
     {
         current->methodMiddlewares[method] = middlewares;
@@ -56,7 +56,7 @@ std::optional<std::pair<RequestHandler, std::vector<std::reference_wrapper<IHand
     }
 
     auto handlerIt = current->methodHandlers.find(method);
-    if (handlerIt != current->methodHandlers.end())
+    if (handlerIt != current->methodHandlers.end() && !handlerIt->second.empty())
     {
         std::vector<std::reference_wrapper<IHandler>> middlewares;
         auto mwIt = current->methodMiddlewares.find(method);
@@ -65,10 +65,36 @@ std::optional<std::pair<RequestHandler, std::vector<std::reference_wrapper<IHand
             middlewares = mwIt->second;
         }
 
-        return std::make_pair(handlerIt->second, middlewares);
+        return std::make_pair(handlerIt->second[0], middlewares);
     }
 
     return std::nullopt;
+}
+
+std::vector<RequestHandler> RadixNode::getAllHandlers(const std::string &method, const std::string &path) const
+{
+    auto segments = split(path);
+    const RadixNode *current = this;
+
+    for (const auto &seg : segments)
+    {
+        const RadixNode *next = current->findChild(seg);
+        if (!next)
+        {
+            next = current->findParamChild();
+            if (!next)
+                return {};
+        }
+        current = next;
+    }
+
+    auto handlerIt = current->methodHandlers.find(method);
+    if (handlerIt != current->methodHandlers.end())
+    {
+        return handlerIt->second;
+    }
+
+    return {};
 }
 
 bool RadixNode::isParam() const

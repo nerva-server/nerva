@@ -30,7 +30,14 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 - **Clustering Support**: Fork-based worker processes for load distribution
 - **Configuration System**: Dynamic configuration with `.nrvcfg` files
 - **Library Build**: Shared library support with install system
-- **Dosya Yükleme**: Multipart/form-data desteği ile dosya upload (Request::getFormData, File::save)
+- **File Upload**: Multipart/form-data support for file upload (Request::getFormData, File::save)
+- **HTTP Methods**: Full support for GET, POST, PUT, DELETE methods with chaining
+- **Content-Type Detection**: Automatic content-type detection for responses
+- **Thread-Safe Architecture**: Thread-safe queue and thread pool for concurrent connections
+- **MIME Type Support**: Comprehensive MIME type detection for static files
+- **Response Headers**: Custom header management and automatic header setting
+- **Process Management**: Fork-based clustering with graceful shutdown
+- **Non-blocking I/O**: Epoll-based event-driven architecture
 
 ## Quick Start
 
@@ -314,32 +321,137 @@ server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
 });
 ```
 
-### Dosya Yükleme (Multipart Form Data)
+### HTTP Methods Support
+
+```cpp
+// GET method
+server.Get("/users", {}, [](const Http::Request &req, Http::Response &res) {
+    res << 200 << "User list";
+});
+
+// POST method
+server.Post("/users", {}, [](const Http::Request &req, Http::Response &res) {
+    res << 201 << "User created";
+});
+
+// PUT method
+server.Put("/users/:id", {}, [](const Http::Request &req, Http::Response &res) {
+    res << 200 << "User updated: " << req.getParam("id");
+});
+
+// DELETE method
+server.Delete("/users/:id", {}, [](const Http::Request &req, Http::Response &res) {
+    res << 204 << "User deleted: " << req.getParam("id");
+});
+```
+
+### Content-Type Detection and Response Headers
+
+```cpp
+server.Get("/api/data", {}, [](const Http::Request &req, Http::Response &res) {
+    // Automatic content-type detection
+    res << 200 << R"({"message": "JSON response"})";
+    // Will automatically set Content-Type: application/json
+});
+
+server.Get("/custom", {}, [](const Http::Request &req, Http::Response &res) {
+    res.setHeader("X-Custom-Header", "Custom Value");
+    res.setHeader("Cache-Control", "no-cache");
+    res << 200 << "Custom response with headers";
+});
+```
+
+### Thread-Safe Architecture
+
+The server uses a sophisticated thread-safe architecture:
+
+- **Thread-Safe Queue**: Lock-free socket queue for connection handling
+- **Thread Pool**: Configurable worker thread pool for request processing
+- **Non-blocking I/O**: Epoll-based event-driven architecture
+- **Connection Limits**: Configurable maximum connections and queue sizes
+
+```cpp
+// Configuration for thread pool and connection limits
+server {
+    thread_pool_size = 48;        // Worker threads
+    max_connections = 500000;      // Max concurrent connections
+    accept_queue_size = 65535;     // TCP accept queue
+    max_events = 8192;            // Epoll events limit
+}
+```
+
+### Process Management and Clustering
+
+```cpp
+// Fork-based worker processes
+Cluster clusterManager;
+std::vector<pid_t> workers = clusterManager.forkWorkers(serverSocket, cpuCount);
+
+// Graceful shutdown
+clusterManager.sendShutdownSignal(workers);
+clusterManager.waitForWorkers(workers);
+```
+
+### MIME Type Support
+
+The server automatically detects and serves files with proper MIME types:
+
+```cpp
+// Supported file types with automatic MIME detection
+server.Static("/static", "./public");
+// Automatically serves:
+// - HTML files (.html, .htm) as text/html
+// - CSS files (.css) as text/css
+// - JavaScript files (.js) as text/javascript
+// - Images (.png, .jpg, .gif, .svg) as image/*
+// - JSON files (.json) as application/json
+// - And many more...
+```
+
+### Advanced Response Features
+
+```cpp
+server.Get("/download", {}, [](const Http::Request &req, Http::Response &res) {
+    res.setHeader("Content-Disposition", "attachment; filename=file.pdf");
+    res.setHeader("Cache-Control", "no-cache");
+    res.SendFile("./files/document.pdf");
+});
+
+server.Get("/redirect-permanent", {}, [](const Http::Request &req, Http::Response &res) {
+    res.MovedRedirect("/new-location");  // 301 redirect
+});
+
+server.Get("/redirect-temporary", {}, [](const Http::Request &req, Http::Response &res) {
+    res.TemporaryRedirect("/temp-location");  // 302 redirect
+});
+```
+
+### File Upload (Multipart Form Data)
 
 ```cpp
 server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res) {
     auto fileData = req.getFormData("file");
     if (fileData.isFile && !fileData.file.empty()) {
         fileData.file.save("./public/" + fileData.filename);
-        res << 200 << "Dosya başarıyla yüklendi: " << fileData.filename;
+        res << 200 << "File uploaded successfully: " << fileData.filename;
     } else {
-        res << 400 << "Dosya yüklenemedi.";
+        res << 400 << "File upload failed.";
     }
 });
 ```
 
-#### HTML Form Örneği
+#### HTML Form Example
 ```html
 <form action="/upload" method="post" enctype="multipart/form-data">
   <input type="file" name="file">
-  <button type="submit">Yükle</button>
+  <button type="submit">Upload</button>
 </form>
 ```
 
-### Gelişmiş Route ve Middleware Kullanımı
+### Advanced Route and Middleware Usage
 
 ```cpp
-// Middleware ile korunan route
+// Middleware-protected route
 Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next) {
     std::string token = req.getQuery("token");
     if (token != "123") {
@@ -354,7 +466,7 @@ server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, H
 });
 ```
 
-### Tüm Özellikleri Kapsayan main.cpp Örneği
+### Example main.cpp Demonstrating All Features
 
 ```cpp
 #include <iostream>
@@ -381,9 +493,9 @@ int main() {
         auto fileData = req.getFormData("file");
         if (fileData.isFile && !fileData.file.empty()) {
             fileData.file.save("./public/" + fileData.filename);
-            res << 200 << "Dosya başarıyla yüklendi: " << fileData.filename;
+            res << 200 << "File uploaded successfully: " << fileData.filename;
         } else {
-            res << 400 << "Dosya yüklenemedi.";
+            res << 400 << "File upload failed.";
         }
     });
     Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next) {
@@ -520,8 +632,10 @@ Nerva/
 - `getQuery(name)`: Get query parameter
 - `getHeader(name)`: Get request header
 - `getBody()`: Get request body
-- `const FormData &Request::getFormData(const std::string &key) const`: Multipart form alanı veya dosya verisini döndürür.
-- `bool File::save(const std::string &path) const`: Yüklenen dosyayı belirtilen yola kaydeder.
+- `const FormData &Request::getFormData(const std::string &key) const`: Returns multipart form field or file data.
+- `bool File::save(const std::string &path) const`: Saves the uploaded file to the specified path.
+- `std::string Request::getHeader(const std::string &key) const`: Gets request header value.
+- `bool Request::isMultipartFormData() const`: Checks if request is multipart form data.
 
 ### Response Object
 
@@ -531,6 +645,8 @@ Nerva/
 - `TemporaryRedirect(location)`: Send 302 temporary redirect
 - `setHeader(key, value)`: Set custom response header
 - `Render(view, data)`: Render a template with nlohmann::json data
+- `std::string detectContentType(body)`: Automatically detect content type
+- `void setStatus(code, message)`: Set custom status code and message
 
 ### Template Engine Features
 

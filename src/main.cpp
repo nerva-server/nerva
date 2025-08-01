@@ -57,8 +57,6 @@ int main()
     server.Post("/login", {}, [](const Http::Request &req, Http::Response &res, auto next) {
         std::string username = req.getFormData("username").value;
         std::string password = req.getFormData("password").value;
-
-        std::cout << username << " a "  << password;
         
         if (users.find(username) != users.end() && users[username] == password) {
             std::string sessionId = "sess_" + std::to_string(std::time(nullptr)) + "_" + username;

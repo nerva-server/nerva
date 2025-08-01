@@ -84,8 +84,24 @@ const std::string &Http::Request::getHeader(const std::string &key) const
 const Http::Request::FormData &Http::Request::getFormData(const std::string &key) const
 {
     static const FormData empty = {"", File(), "", "", false};
+    
     auto it = formData.find(key);
-    return it != formData.end() ? it->second : empty;
+    if (it != formData.end()) {
+        return it->second;
+    }
+    
+    auto paramIt = params.find(key);
+    if (paramIt != params.end()) {
+        static FormData tempData;
+        tempData.value = paramIt->second;
+        tempData.isFile = false;
+        tempData.filename = "";
+        tempData.contentType = "";
+        tempData.file = File();
+        return tempData;
+    }
+    
+    return empty;
 }
 
 bool Http::Request::parseMultipartFormData()

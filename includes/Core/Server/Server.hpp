@@ -8,10 +8,10 @@
 #include <netinet/in.h>
 #include <sys/epoll.h>
 
-#include "Secure/Config/ConfigParser.hpp"
-#include "Utils/ThreadSafeQueue.hpp"
-#include "Core/Http/Router/Router.hpp"
-#include "Core/Http/Handler/StaticFileHandler.hpp"
+#include "ConfigParser.hpp"
+#include "ThreadSafeQueue.hpp"
+#include "Router.hpp"
+#include "StaticFileHandler.hpp"
 
 class Server : public Router
 {

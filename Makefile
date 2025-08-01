@@ -1,5 +1,6 @@
 CXX = clang++
-CXXFLAGS = -fno-omit-frame-pointer -std=c++20 -Wall -Wextra -O2 -I./src -I./includes
+INCLUDE_DIRS := $(shell find includes -type d)
+CXXFLAGS += $(patsubst %,-I%,$(INCLUDE_DIRS))
 LDFLAGS = -lsimdjson
 
 SRC_DIR = src

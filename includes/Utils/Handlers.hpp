@@ -5,8 +5,8 @@
 #include <map>
 #include <functional>
 
-#include "Core/Http/Request/Request.hpp"
-#include "Core/Http/Request/Response.hpp"
+#include "Request.hpp"
+#include "Response.hpp"
 
 class Router;
 

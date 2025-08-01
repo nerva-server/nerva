@@ -8,11 +8,11 @@
 #include <memory>
 #include <vector>
 
-#include "Utils/Handlers.hpp"
-#include "Utils/String.hpp"
-#include "Radix/RadixNode.hpp"
-#include "Core/Http/Handler/IHandler.hpp"
-#include "ViewEngine/NervaEngine.hpp"
+#include "Handlers.hpp"
+#include "String.hpp"
+#include "RadixNode.hpp"
+#include "IHandler.hpp"
+#include "NervaEngine.hpp"
 
 #include "RouteBuilder.hpp"
 #include "GroupBuilder.hpp"

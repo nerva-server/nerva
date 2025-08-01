@@ -8,8 +8,8 @@
 #include <functional>
 #include <optional>
 
-#include "Utils/Handlers.hpp"
-#include "Core/Http/Handler/IHandler.hpp"
+#include "Handlers.hpp"
+#include "IHandler.hpp"
 
 class RadixNode
 {

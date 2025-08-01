@@ -4,9 +4,9 @@
 #include <string>
 #include <functional>
 
-#include "Core/Http/Handler/IHandler.hpp"
-#include "Core/Http/Request/Request.hpp"
-#include "Core/Http/Request/Response.hpp"
+#include "IHandler.hpp"
+#include "Request.hpp"
+#include "Response.hpp"
 
 class Middleware : public IHandler
 {

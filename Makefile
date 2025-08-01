@@ -1,7 +1,7 @@
 CXX = clang++
 INCLUDE_DIRS := $(shell find includes -type d)
 CXXFLAGS += $(patsubst %,-I%,$(INCLUDE_DIRS))
-LDFLAGS = -lsimdjson
+LDFLAGS = -lsimdjson -lssl -lcrypto
 
 SRC_DIR = src
 BUILD_DIR = build

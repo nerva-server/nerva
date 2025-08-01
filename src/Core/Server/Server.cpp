@@ -278,6 +278,49 @@ void Server::handleClient(int clientSocket)
         res._engine = _engine;
         res.viewDir = keys["views"];
 
+        if (req.headers.find("Cookie") != req.headers.end())
+        {
+            std::string cookieHeader = req.headers["Cookie"];
+            size_t pos = 0;
+            while (pos < cookieHeader.length())
+            {
+                pos = cookieHeader.find_first_not_of(" ;\t", pos);
+                if (pos == std::string::npos)
+                    break;
+
+                size_t eq_pos = cookieHeader.find('=', pos);
+                if (eq_pos == std::string::npos || eq_pos <= pos)
+                {
+                    break;
+                }
+
+                size_t end_pos = cookieHeader.find(';', eq_pos);
+                if (end_pos == std::string::npos)
+                {
+                    end_pos = cookieHeader.length();
+                }
+
+                std::string name = cookieHeader.substr(pos, eq_pos - pos);
+                std::string value = cookieHeader.substr(eq_pos + 1, end_pos - eq_pos - 1);
+
+                auto trim = [](std::string &s)
+                {
+                    size_t start = s.find_first_not_of(" \t");
+                    if (start == std::string::npos)
+                        return;
+                    size_t end = s.find_last_not_of(" \t");
+                    s = s.substr(start, end - start + 1);
+                };
+
+                trim(name);
+                trim(value);
+
+                res.incomingCookies[name] = value;
+                
+                pos = end_pos + 1;
+            }
+        }
+
         this->Handle(req, res, []() {});
 
         std::string responseData = res.toString();

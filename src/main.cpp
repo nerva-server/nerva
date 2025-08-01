@@ -12,13 +12,25 @@
 #include <cstring>
 #include <system_error>
 #include <sstream>
+#include <map>
 
 #include "Server.hpp"
 #include "Middleware.hpp"
 #include "Json.hpp"
 #include "ViewEngine/NervaEngine.hpp"
 
-int main() {
+// Simple user database (in real app, use proper database)
+std::map<std::string, std::string> users = {
+    {"admin", "password123"},
+    {"user1", "password456"},
+    {"demo", "demo123"}
+};
+
+// Simple session storage (in real app, use Redis or database)
+std::map<std::string, std::string> sessions;
+
+int main()
+{
     // Server and configuration
     Server server;
     server.SetConfigFile("server");
@@ -34,12 +46,144 @@ int main() {
 
     // Basic route
     server.Get("/", {}, [](const Http::Request &req, Http::Response &res) {
-        res << 200 << "Home Page - Nerva HTTP Server";
+        // Check if user is logged in via cookie
+        auto sessionId = res.getCookie("session_id");
+        if (sessionId && sessions.find(*sessionId) != sessions.end()) {
+            // User is logged in, redirect to dashboard
+            res.TemporaryRedirect("/dashboard");
+        } else {
+            // User not logged in, show login page
+            res.TemporaryRedirect("/login");
+        }
+    });
+
+    // Login page
+    server.Get("/login", {}, [](const Http::Request &req, Http::Response &res) {
+        nlohmann::json data = {
+            {"pageTitle", "Login - Nerva HTTP Server"},
+            {"error", ""}
+        };
+        res.Render("login", data);
+    });
+
+    // Login form handler
+    server.Post("/login", {}, [](const Http::Request &req, Http::Response &res) {
+        std::string username = req.getFormData("username").value;
+        std::string password = req.getFormData("password").value;
+        
+        // Check credentials
+        if (users.find(username) != users.end() && users[username] == password) {
+            // Generate session ID
+            std::string sessionId = "sess_" + std::to_string(std::time(nullptr)) + "_" + username;
+            sessions[sessionId] = username;
+            
+            // Set secure cookie
+            Http::CookieOptions cookieOpts;
+            cookieOpts.maxAge = std::chrono::hours(24); // 24 hours
+            cookieOpts.httpOnly = true;
+            cookieOpts.secure = false; // Set to true in production with HTTPS
+            cookieOpts.sameSite = "Lax";
+            
+            res.setCookie("session_id", sessionId, cookieOpts);
+            res.TemporaryRedirect("/dashboard");
+        } else {
+            // Invalid credentials
+            nlohmann::json data = {
+                {"pageTitle", "Login - Nerva HTTP Server"},
+                {"error", "Invalid username or password"}
+            };
+            res.Render("login", data);
+        }
+    });
+
+    // Dashboard (protected by cookie authentication)
+    server.Get("/dashboard", {}, [](const Http::Request &req, Http::Response &res) {
+        auto sessionId = res.getCookie("session_id");
+        if (!sessionId || sessions.find(*sessionId) == sessions.end()) {
+            res.TemporaryRedirect("/login");
+            return;
+        }
+        
+        std::string username = sessions[*sessionId];
+        nlohmann::json data = {
+            {"pageTitle", "Dashboard - Nerva HTTP Server"},
+            {"username", username},
+            {"sessionId", *sessionId},
+            {"loginTime", std::to_string(std::time(nullptr))}
+        };
+        res.Render("dashboard", data);
+    });
+
+    // Logout
+    server.Get("/logout", {}, [](const Http::Request &req, Http::Response &res) {
+        auto sessionId = res.getCookie("session_id");
+        if (sessionId) {
+            sessions.erase(*sessionId);
+            res.removeCookie("session_id");
+        }
+        res.TemporaryRedirect("/login");
+    });
+
+    // Cookie examples
+    server.Get("/cookies", {}, [](const Http::Request &req, Http::Response &res) {
+        // Set various types of cookies
+        Http::CookieOptions basicOpts;
+        basicOpts.maxAge = std::chrono::hours(1);
+        res.setCookie("basic_cookie", "Hello World", basicOpts);
+        
+        Http::CookieOptions secureOpts;
+        secureOpts.maxAge = std::chrono::hours(2);
+        secureOpts.httpOnly = true;
+        secureOpts.secure = false; // Set to true in production
+        res.setSignedCookie("secure_cookie", "Secret Data", "my-secret-key", secureOpts);
+        
+        Http::CookieOptions sessionOpts;
+        sessionOpts.maxAge = std::chrono::hours(24);
+        sessionOpts.httpOnly = true;
+        sessionOpts.sameSite = "Strict";
+        res.setCookie("session_cookie", "User Session Data", sessionOpts);
+        
+        // Read cookies
+        std::string basicValue = res.getCookieValue("basic_cookie", "Not Set");
+        auto secureValue = res.getSignedCookie("secure_cookie", "my-secret-key");
+        
+        nlohmann::json data = {
+            {"pageTitle", "Cookie Examples"},
+            {"basicCookie", basicValue},
+            {"secureCookie", secureValue.value_or("Invalid or Not Set")},
+            {"allCookies", nlohmann::json::object()}
+        };
+        
+        // Add all incoming cookies to data
+        for (const auto& [name, value] : res.incomingCookies) {
+            data["allCookies"][name] = value;
+        }
+        
+        res.Render("cookies", data);
+    });
+
+    // Cookie management example
+    server.Get("/cookie-manager", {}, [](const Http::Request &req, Http::Response &res) {
+        std::string action = req.getQuery("action");
+        std::string name = req.getQuery("name");
+        std::string value = req.getQuery("value");
+        
+        if (action == "set" && !name.empty()) {
+            Http::CookieOptions opts;
+            opts.maxAge = std::chrono::hours(1);
+            res.setCookie(name, value, opts);
+        } else if (action == "remove" && !name.empty()) {
+            res.removeCookie(name);
+        }
+        
+        res.TemporaryRedirect("/cookies");
     });
 
     // Dynamic parameter route
     server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res) {
-        res << 200 << "Test ID: " << req.getParam("id");
+        Http::CookieOptions secureOpts;
+        res.setSignedCookie("secure", "ITS VERY SAFE", "123", secureOpts);
+        res << 200 << "Test ID: " << req.getParam("id") << " Cookie: " << res.getSignedCookie("secure", "123").value_or("");
     });
 
     // File upload (multipart/form-data) example

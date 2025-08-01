@@ -38,6 +38,7 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 - **Response Headers**: Custom header management and automatic header setting
 - **Process Management**: Fork-based clustering with graceful shutdown
 - **Non-blocking I/O**: Epoll-based event-driven architecture
+- **Cookie Management**: Comprehensive cookie handling with signed cookies and session management
 
 ## Quick Start
 
@@ -426,43 +427,139 @@ server.Get("/redirect-temporary", {}, [](const Http::Request &req, Http::Respons
 });
 ```
 
-### File Upload (Multipart Form Data)
+### Cookie Management and Session Handling
 
 ```cpp
-server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res) {
-    auto fileData = req.getFormData("file");
-    if (fileData.isFile && !fileData.file.empty()) {
-        fileData.file.save("./public/" + fileData.filename);
-        res << 200 << "File uploaded successfully: " << fileData.filename;
-    } else {
-        res << 400 << "File upload failed.";
-    }
+// Set various types of cookies
+server.Get("/cookies", {}, [](const Http::Request &req, Http::Response &res) {
+    // Basic cookie
+    Http::CookieOptions basicOpts;
+    basicOpts.maxAge = std::chrono::hours(1);
+    res.setCookie("basic_cookie", "Hello World", basicOpts);
+    
+    // Secure signed cookie
+    Http::CookieOptions secureOpts;
+    secureOpts.maxAge = std::chrono::hours(2);
+    secureOpts.httpOnly = true;
+    secureOpts.secure = false; // Set to true in production
+    res.setSignedCookie("secure_cookie", "Secret Data", "my-secret-key", secureOpts);
+    
+    // Session cookie
+    Http::CookieOptions sessionOpts;
+    sessionOpts.maxAge = std::chrono::hours(24);
+    sessionOpts.httpOnly = true;
+    sessionOpts.sameSite = "Strict";
+    res.setCookie("session_cookie", "User Session Data", sessionOpts);
+    
+    // Read cookies
+    std::string basicValue = res.getCookieValue("basic_cookie", "Not Set");
+    auto secureValue = res.getSignedCookie("secure_cookie", "my-secret-key");
+    
+    nlohmann::json data = {
+        {"pageTitle", "Cookie Examples"},
+        {"basicCookie", basicValue},
+        {"secureCookie", secureValue.value_or("Invalid or Not Set")}
+    };
+    
+    res.Render("cookies", data);
+});
+
+// Remove cookie
+server.Get("/logout", {}, [](const Http::Request &req, Http::Response &res) {
+    res.removeCookie("session_id");
+    res.TemporaryRedirect("/login");
 });
 ```
 
-#### HTML Form Example
-```html
-<form action="/upload" method="post" enctype="multipart/form-data">
-  <input type="file" name="file">
-  <button type="submit">Upload</button>
-</form>
-```
-
-### Advanced Route and Middleware Usage
+### Authentication System
 
 ```cpp
-// Middleware-protected route
-Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next) {
-    std::string token = req.getQuery("token");
-    if (token != "123") {
-        res << 401 << "Unauthorized";
+// Simple user database (in real app, use proper database)
+std::map<std::string, std::string> users = {
+    {"admin", "password123"},
+    {"user1", "password456"},
+    {"demo", "demo123"}
+};
+
+// Session storage (in real app, use Redis or database)
+std::map<std::string, std::string> sessions;
+
+// Login page
+server.Get("/login", {}, [](const Http::Request &req, Http::Response &res) {
+    nlohmann::json data = {
+        {"pageTitle", "Login - Nerva HTTP Server"},
+        {"error", ""}
+    };
+    res.Render("login", data);
+});
+
+// Login form handler
+server.Post("/login", {}, [](const Http::Request &req, Http::Response &res) {
+    std::string username = req.getFormData("username").value;
+    std::string password = req.getFormData("password").value;
+    
+    // Check credentials
+    if (users.find(username) != users.end() && users[username] == password) {
+        // Generate session ID
+        std::string sessionId = "sess_" + std::to_string(std::time(nullptr)) + "_" + username;
+        sessions[sessionId] = username;
+        
+        // Set secure cookie
+        Http::CookieOptions cookieOpts;
+        cookieOpts.maxAge = std::chrono::hours(24); // 24 hours
+        cookieOpts.httpOnly = true;
+        cookieOpts.secure = false; // Set to true in production with HTTPS
+        cookieOpts.sameSite = "Lax";
+        
+        res.setCookie("session_id", sessionId, cookieOpts);
+        res.TemporaryRedirect("/dashboard");
+    } else {
+        // Invalid credentials
+        nlohmann::json data = {
+            {"pageTitle", "Login - Nerva HTTP Server"},
+            {"error", "Invalid username or password"}
+        };
+        res.Render("login", data);
+    }
+});
+
+// Protected dashboard
+server.Get("/dashboard", {}, [](const Http::Request &req, Http::Response &res) {
+    auto sessionId = res.getCookie("session_id");
+    if (!sessionId || sessions.find(*sessionId) == sessions.end()) {
+        res.TemporaryRedirect("/login");
         return;
     }
-    next();
+    
+    std::string username = sessions[*sessionId];
+    nlohmann::json data = {
+        {"pageTitle", "Dashboard - Nerva HTTP Server"},
+        {"username", username},
+        {"sessionId", *sessionId},
+        {"loginTime", std::to_string(std::time(nullptr))}
+    };
+    res.Render("dashboard", data);
 });
+```
 
-server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res) {
-    res << 200 << Json::ParseAndReturnBody(R"({"message": "Protected area - Welcome!"})");
+### Cookie Management Tools
+
+```cpp
+// Cookie management example
+server.Get("/cookie-manager", {}, [](const Http::Request &req, Http::Response &res) {
+    std::string action = req.getQuery("action");
+    std::string name = req.getQuery("name");
+    std::string value = req.getQuery("value");
+    
+    if (action == "set" && !name.empty()) {
+        Http::CookieOptions opts;
+        opts.maxAge = std::chrono::hours(1);
+        res.setCookie(name, value, opts);
+    } else if (action == "remove" && !name.empty()) {
+        res.removeCookie(name);
+    }
+    
+    res.TemporaryRedirect("/cookies");
 });
 ```
 
@@ -647,6 +744,12 @@ Nerva/
 - `Render(view, data)`: Render a template with nlohmann::json data
 - `std::string detectContentType(body)`: Automatically detect content type
 - `void setStatus(code, message)`: Set custom status code and message
+- `Response& setCookie(name, value, options)`: Set a cookie with options
+- `std::optional<std::string> getCookie(name)`: Get cookie value
+- `std::string getCookieValue(name, defaultValue)`: Get cookie with default
+- `Response& setSignedCookie(name, value, secret, options)`: Set signed cookie
+- `std::optional<std::string> getSignedCookie(name, secret)`: Get signed cookie
+- `void removeCookie(name, path, domain, secure)`: Remove a cookie
 
 ### Template Engine Features
 

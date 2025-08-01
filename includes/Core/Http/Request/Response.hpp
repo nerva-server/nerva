@@ -6,11 +6,26 @@
 #include <sstream>
 #include <unordered_map>
 #include <regex>
-
+#include <ctime>
+#include <iomanip>
+#include <optional>
+#include <chrono>
+#include <openssl/hmac.h>
+#include <openssl/evp.h>
 #include "Engine.hpp"
 
 namespace Http
 {
+    struct CookieOptions
+    {
+        std::optional<std::chrono::seconds> maxAge;
+        std::optional<std::string> path = "/";
+        std::optional<std::string> domain;
+        bool secure = false;
+        bool httpOnly = false;
+        std::optional<std::string> sameSite;
+    };
+
     class Response
     {
     public:
@@ -21,6 +36,8 @@ namespace Http
         std::string viewDir = "./views";
 
         Nerva::TemplateEngine *_engine;
+        std::unordered_map<std::string, std::string> incomingCookies;
+        std::unordered_map<std::string, std::string> cookies;
 
         void setStatus(int code, const std::string &message)
         {
@@ -72,6 +89,94 @@ namespace Http
 
         void SendFile(std::string path);
 
+        Response &setCookie(const std::string &name,
+                            const std::string &value,
+                            const CookieOptions &options = {})
+        {
+            std::ostringstream cookie;
+            cookie << name << "=" << value;
+
+            if (options.maxAge)
+            {
+                cookie << "; Max-Age=" << options.maxAge->count();
+
+                std::time_t expireTime = std::time(nullptr) + options.maxAge->count();
+                std::tm tm = *std::gmtime(&expireTime);
+                char buf[100];
+                std::strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S GMT", &tm);
+                cookie << "; Expires=" << buf;
+            }
+
+            if (options.path)
+                cookie << "; Path=" << *options.path;
+            if (options.domain)
+                cookie << "; Domain=" << *options.domain;
+            if (options.secure)
+                cookie << "; Secure";
+            if (options.httpOnly)
+                cookie << "; HttpOnly";
+            if (options.sameSite)
+                cookie << "; SameSite=" << *options.sameSite;
+
+            cookies[name] = cookie.str();
+            return *this;
+        }
+
+        std::optional<std::string> getCookie(const std::string &name) const
+        {
+            auto it = incomingCookies.find(name);
+            return it != incomingCookies.end() ? std::make_optional(it->second) : std::nullopt;
+        }
+
+        std::string getCookieValue(const std::string &name,
+                                   const std::string &defaultValue = "") const
+        {
+            auto cookie = getCookie(name);
+            return cookie ? *cookie : defaultValue;
+        }
+
+        void removeCookie(const std::string &name,
+                          const std::optional<std::string> &path = "/",
+                          const std::optional<std::string> &domain = std::nullopt,
+                          bool secure = false)
+        {
+            CookieOptions options;
+            options.path = path;
+            options.domain = domain;
+            options.secure = secure;
+            options.maxAge = std::chrono::seconds(-1);
+
+            setCookie(name, "", options);
+        }
+
+        Response &setSignedCookie(const std::string &name,
+                                  const std::string &value,
+                                  const std::string &secret,
+                                  const CookieOptions &options = {})
+        {
+            std::string signature = hmac_sha256(secret, value);
+            return setCookie(name, value + "." + signature, options);
+        }
+
+        std::optional<std::string> getSignedCookie(const std::string &name,
+                                                   const std::string &secret) const
+        {
+            auto cookie = getCookie(name);
+            if (!cookie)
+                return std::nullopt;
+
+            size_t dot = cookie->rfind('.');
+            if (dot == std::string::npos)
+                return std::nullopt;
+
+            std::string value = cookie->substr(0, dot);
+            if (hmac_sha256(secret, value) != cookie->substr(dot + 1))
+            {
+                return std::nullopt;
+            }
+            return value.empty() ? "" : std::string(value);
+        }
+
         std::string detectContentType(const std::string &body) const
         {
             size_t start = body.find_first_not_of(" \t\n\r");
@@ -97,6 +202,11 @@ namespace Http
                 responseStream << "Content-Type: " << detectContentType(body) << "\r\n";
             }
 
+            for (const auto &[name, cookie] : cookies)
+            {
+                responseStream << "Set-Cookie: " << cookie << "\r\n";
+            }
+
             for (const auto &[key, val] : headers)
             {
                 responseStream << key << ": " << val << "\r\n";
@@ -110,29 +220,23 @@ namespace Http
         }
 
     private:
-        std::string defaultStatusMessage(int code)
+        static std::string hmac_sha256(const std::string &key, const std::string &data)
         {
-            switch (code)
+            unsigned char digest[EVP_MAX_MD_SIZE];
+            unsigned int len;
+
+            HMAC(EVP_sha256(),
+                 key.c_str(), static_cast<int>(key.length()),
+                 reinterpret_cast<const unsigned char *>(data.c_str()), data.length(),
+                 digest, &len);
+
+            std::ostringstream oss;
+            for (unsigned int i = 0; i < len; i++)
             {
-            case 200:
-                return "OK";
-            case 201:
-                return "Created";
-            case 204:
-                return "No Content";
-            case 400:
-                return "Bad Request";
-            case 401:
-                return "Unauthorized";
-            case 403:
-                return "Forbidden";
-            case 404:
-                return "Not Found";
-            case 500:
-                return "Internal Server Error";
-            default:
-                return "Unknown";
+                oss << std::hex << std::setw(2) << std::setfill('0')
+                    << static_cast<int>(digest[i]);
             }
+            return oss.str();
         }
     };
 }

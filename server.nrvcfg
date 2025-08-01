@@ -1,6 +1,6 @@
 server {
     port = 8080;
-    buffer_size = 4096;
+    buffer_size = 24096;
     thread_pool_size = 48;
     keep_alive_timeout = 5;
     cluster_thread = 3;

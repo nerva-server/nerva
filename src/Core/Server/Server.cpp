@@ -28,9 +28,8 @@ void signalHandler(int signum)
     shutdownServer.store(true);
 }
 
-Server::Server(): 
-      activeConnections(0),
-      config("server.nrvcfg")
+Server::Server() : activeConnections(0),
+                   config("server.nrvcfg")
 {
     std::signal(SIGINT, signalHandler);
 }
@@ -208,66 +207,88 @@ void Server::acceptConnections()
     close(epollFd);
 }
 
-void Server::SetConfigFile(std::string path) {
+void Server::SetConfigFile(std::string path)
+{
     config = ConfigParser(path + ".nrvcfg");
 }
 
 void Server::handleClient(int clientSocket)
 {
     activeConnections++;
-    char buffer[config.getInt("buffer_size")];
     try
     {
+        std::vector<char> buffer(config.getInt("buffer_size"));
+        std::string requestData;
+
         while (!shutdownServer)
         {
-            int valread = read(clientSocket, buffer, config.getInt("buffer_size"));
+            int valread = read(clientSocket, buffer.data(), buffer.size());
+
             if (valread < 0)
             {
                 if (errno == EAGAIN || errno == EWOULDBLOCK)
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
                     continue;
-
-                close(clientSocket);
-                activeConnections--;
-                return;
+                }
+                throw std::system_error(errno, std::system_category(), "read failed");
             }
             else if (valread == 0)
             {
-                close(clientSocket);
-                activeConnections--;
-                return;
+                break;
             }
-            else if (valread == config.getInt("buffer_size"))
+
+            requestData.append(buffer.data(), valread);
+
+            size_t headerEnd = requestData.find("\r\n\r\n");
+            if (headerEnd != std::string::npos)
             {
-                std::cerr << "Buffer overflow detected, closing connection.\n";
-                close(clientSocket);
-                activeConnections--;
-                return;
+                if (requestData.find("Content-Length:") != std::string::npos)
+                {
+                    size_t contentLengthPos = requestData.find("Content-Length:");
+                    size_t contentLengthEnd = requestData.find("\r\n", contentLengthPos);
+                    std::string contentLengthStr = requestData.substr(
+                        contentLengthPos + 15,
+                        contentLengthEnd - contentLengthPos - 15);
+                    contentLengthStr.erase(0, contentLengthStr.find_first_not_of(" \t"));
+                    contentLengthStr.erase(contentLengthStr.find_last_not_of(" \t") + 1);
+
+                    size_t contentLength = std::stoul(contentLengthStr);
+                    size_t bodyStart = headerEnd + 4;
+                    if (requestData.length() - bodyStart >= contentLength)
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    break;
+                }
             }
+        }
 
-            std::string requestData(buffer, valread);
-            Http::Request req;
+        Http::Request req;
+        if (!req.parse(requestData))
+        {
+            std::cerr << "Failed to parse request.\n";
+            throw std::runtime_error("Failed to parse HTTP request");
+        }
 
-            if (!req.parse(requestData))
-            {
-                std::cerr << "Failed to parse request\n";
-                close(clientSocket);
-                activeConnections--;
-                return;
-            }
+        Http::Response res;
+        res._engine = _engine;
+        res.viewDir = keys["views"];
 
-            Http::Response res;
-            res._engine = _engine;
-            res.viewDir = keys["views"];
+        this->Handle(req, res, []() {});
 
-            this->Handle(req, res, []() {});
-
-            std::string responseData = res.toString();
-            send(clientSocket, responseData.c_str(), responseData.size(), MSG_NOSIGNAL);
+        std::string responseData = res.toString();
+        if (send(clientSocket, responseData.c_str(), responseData.size(), MSG_NOSIGNAL) < 0)
+        {
+            throw std::system_error(errno, std::system_category(), "send failed");
         }
     }
-    catch (const std::system_error &e)
+    catch (const std::exception &e)
     {
-        std::cerr << "Client handling error: " << e.what() << " (" << e.code() << ")\n";
+        std::cerr << "Client handling error: " << e.what() << "\n";
     }
 
     close(clientSocket);

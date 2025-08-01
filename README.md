@@ -30,6 +30,7 @@ A high-performance, multi-threaded HTTP server written in C++20 with modern feat
 - **Clustering Support**: Fork-based worker processes for load distribution
 - **Configuration System**: Dynamic configuration with `.nrvcfg` files
 - **Library Build**: Shared library support with install system
+- **Dosya Yükleme**: Multipart/form-data desteği ile dosya upload (Request::getFormData, File::save)
 
 ## Quick Start
 
@@ -313,6 +314,105 @@ server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
 });
 ```
 
+### Dosya Yükleme (Multipart Form Data)
+
+```cpp
+server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res) {
+    auto fileData = req.getFormData("file");
+    if (fileData.isFile && !fileData.file.empty()) {
+        fileData.file.save("./public/" + fileData.filename);
+        res << 200 << "Dosya başarıyla yüklendi: " << fileData.filename;
+    } else {
+        res << 400 << "Dosya yüklenemedi.";
+    }
+});
+```
+
+#### HTML Form Örneği
+```html
+<form action="/upload" method="post" enctype="multipart/form-data">
+  <input type="file" name="file">
+  <button type="submit">Yükle</button>
+</form>
+```
+
+### Gelişmiş Route ve Middleware Kullanımı
+
+```cpp
+// Middleware ile korunan route
+Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next) {
+    std::string token = req.getQuery("token");
+    if (token != "123") {
+        res << 401 << "Unauthorized";
+        return;
+    }
+    next();
+});
+
+server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res) {
+    res << 200 << Json::ParseAndReturnBody(R"({"message": "Protected area - Welcome!"})");
+});
+```
+
+### Tüm Özellikleri Kapsayan main.cpp Örneği
+
+```cpp
+#include <iostream>
+#include "Server.hpp"
+#include "Middleware.hpp"
+#include "Json.hpp"
+#include "ViewEngine/NervaEngine.hpp"
+
+int main() {
+    Server server;
+    server.SetConfigFile("server");
+    server.Static("/static", "./public");
+    Nerva::Engine *engine = new Nerva::Engine();
+    engine->setViewsDirectory("./views");
+    server.Set("view engine", engine);
+
+    server.Get("/", {}, [](const Http::Request &req, Http::Response &res) {
+        res << 200 << "Home Page - Nerva HTTP Server";
+    });
+    server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res) {
+        res << 200 << "Test ID: " << req.getParam("id");
+    });
+    server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res) {
+        auto fileData = req.getFormData("file");
+        if (fileData.isFile && !fileData.file.empty()) {
+            fileData.file.save("./public/" + fileData.filename);
+            res << 200 << "Dosya başarıyla yüklendi: " << fileData.filename;
+        } else {
+            res << 400 << "Dosya yüklenemedi.";
+        }
+    });
+    Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next) {
+        std::string token = req.getQuery("token");
+        if (token != "123") {
+            res << 401 << "Unauthorized";
+            return;
+        }
+        next();
+    });
+    server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res) {
+        res << 200 << Json::ParseAndReturnBody(R"({"message": "Protected area - Welcome!"})");
+    });
+    server.Get("/products").Then([](const Http::Request &req, Http::Response &res) {
+        nlohmann::json data = {
+            {"pageTitle", "Super Products"},
+            {"products", {{{"id", "101"}, {"name", "Smartphone"}, {"price", 7999.90}, {"inStock", true}}}}
+        };
+        res.Render("productPage", data);
+    });
+    server.Get("/*").Then([](const Http::Request &req, Http::Response &res) {
+        res.Render("notFound", nlohmann::json{});
+    });
+    server.Start();
+    server.Stop();
+    return 0;
+}
+```
+
 ## Configuration
 
 The server uses a custom configuration system with `.nrvcfg` files:
@@ -420,6 +520,8 @@ Nerva/
 - `getQuery(name)`: Get query parameter
 - `getHeader(name)`: Get request header
 - `getBody()`: Get request body
+- `const FormData &Request::getFormData(const std::string &key) const`: Multipart form alanı veya dosya verisini döndürür.
+- `bool File::save(const std::string &path) const`: Yüklenen dosyayı belirtilen yola kaydeder.
 
 ### Response Object
 

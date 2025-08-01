@@ -106,7 +106,7 @@ const Http::Request::FormData &Http::Request::getFormData(const std::string &key
 
 bool Http::Request::parseMultipartFormData()
 {
-    const std::string &contentType = headers.at("Content-Type");
+    const std::string &contentType = headers["Content-Type"];
     size_t boundaryPos = contentType.find("boundary=");
     if (boundaryPos == std::string::npos)
         return false;
@@ -148,10 +148,7 @@ bool Http::Request::parseMultipartFormData()
         if (contentEnd < contentStart)
             contentEnd = contentStart;
 
-        std::vector<char> partContent(raw_data.begin() + contentStart,
-                                      raw_data.begin() + contentEnd);
-
-        if (!parseFormDataPart(partHeaders, partContent))
+        if (!parseFormDataPart(partHeaders, raw_data.data() + contentStart, contentEnd - contentStart))
             return false;
 
         pos = partEnd;
@@ -160,7 +157,7 @@ bool Http::Request::parseMultipartFormData()
     return true;
 }
 
-bool Http::Request::parseFormDataPart(const std::string &headers, const std::vector<char> &content)
+bool Http::Request::parseFormDataPart(const std::string &headers, const char* content, size_t contentSize)
 {
     size_t dispPos = headers.find("Content-Disposition:");
     if (dispPos == std::string::npos)
@@ -200,11 +197,11 @@ bool Http::Request::parseFormDataPart(const std::string &headers, const std::vec
             data.contentType.erase(data.contentType.find_last_not_of(" \t") + 1);
         }
 
-        data.file = File(content);
+        data.file = File(content, contentSize);
     }
     else
     {
-        data.value = std::string(content.begin(), content.end());
+        data.value = std::string(content, contentSize);
         data.isFile = false;
     }
 

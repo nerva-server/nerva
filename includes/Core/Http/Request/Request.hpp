@@ -8,7 +8,9 @@
 #include <sstream>
 #include <algorithm>
 #include "File.hpp"
+
 #include <nlohmann/json.hpp>
+#include <sparsehash/dense_hash_map>
 
 namespace Http
 {
@@ -24,13 +26,17 @@ namespace Http
             bool isFile;
         };
 
-        Request() = default;
+        Request()
+        {
+            headers.set_empty_key("__EMPTY__");
+            headers.set_deleted_key("__DELETED__");
+        }
 
         std::string method;
         std::string path;
         std::string version;
         std::vector<char> raw_data;
-        std::map<std::string, std::string> headers;
+        google::dense_hash_map<std::string, std::string> headers;
         std::unordered_map<std::string, FormData> formData;
         nlohmann::json jsonBody;
 
@@ -42,7 +48,7 @@ namespace Http
         bool isMultipartFormData() const;
         bool isUrlEncodedFormData() const;
         bool isJsonData() const;
-        
+
         const std::string &getParam(const std::string &key) const;
         const std::string &getQuery(const std::string &key) const;
         const std::string &getHeader(const std::string &key) const;
@@ -57,7 +63,7 @@ namespace Http
 
     private:
         bool parseMultipartFormData();
-        bool parseFormDataPart(const std::string &headers, const std::vector<char> &content);
+        bool parseFormDataPart(const std::string &headers, const char* content, size_t contentSize);
         void parseUrlEncodedFormData();
         void parseJsonData();
         void parseQueryParameters();

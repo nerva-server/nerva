@@ -10,7 +10,8 @@ namespace Nerva
     void Engine::setViewsDirectory(const std::string &path)
     {
         viewsDir = std::filesystem::path(path);
-        if (!std::filesystem::exists(viewsDir))
+        std::error_code ec;
+        if (!std::filesystem::exists(viewsDir, ec))
         {
             throw std::runtime_error("Views directory does not exist: " + path);
         }

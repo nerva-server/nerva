@@ -1,11 +1,11 @@
 server {
     port = 8080;
-    buffer_size = 24096;
-    thread_pool_size = 48;
-    keep_alive_timeout = 5;
+    buffer_size = 2048;
+    thread_pool_size = 30;
+    keep_alive_timeout = 2;
     cluster_thread = 3;
-    max_connections = 500000;
-    accept_queue_size = 65535;
-    accept_retry_delay_ms = 10;
+    max_connections = 50000;
+    accept_queue_size = 8192;
+    accept_retry_delay_ms = 20;
     max_events = 8192;
 }

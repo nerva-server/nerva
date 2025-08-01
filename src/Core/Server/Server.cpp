@@ -57,6 +57,19 @@ int Server::initSocket(int port, int listenQueueSize)
         return -1;
     }
 
+    int qlen = 5;
+    setsockopt(sock, SOL_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen));
+
+    int keepalive = 1;
+    int keepidle = 30;
+    int keepintvl = 5;
+    int keepcnt = 3;
+
+    setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive));
+    setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle));
+    setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(keepintvl));
+    setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof(keepcnt));
+
     int opt = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))
     {
@@ -122,7 +135,7 @@ void Server::acceptConnections()
         return;
     }
     struct epoll_event event;
-    event.events = EPOLLIN;
+    event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
     event.data.fd = serverSocket;
     if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serverSocket, &event) == -1)
     {

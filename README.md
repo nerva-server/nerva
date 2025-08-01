@@ -427,6 +427,67 @@ server.Get("/redirect-temporary", {}, [](const Http::Request &req, Http::Respons
 });
 ```
 
+### Enhanced Request Handling and Performance
+
+The server includes advanced request handling with several performance optimizations:
+
+```cpp
+// Enhanced request handling with timeout management
+void Server::handleClient(int clientSocket) {
+    // Configurable buffer size with memory pre-allocation
+    const size_t BUFFER_SIZE = config.getInt("buffer_size");
+    std::vector<char> buffer(BUFFER_SIZE);
+    std::string requestData;
+    requestData.reserve(BUFFER_SIZE * 2); // Pre-allocate memory
+    
+    // Socket timeout configuration
+    struct timeval tv;
+    tv.tv_sec = 5;  // 5 second timeout
+    tv.tv_usec = 0;
+    setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    
+    // Keep-alive support
+    bool keepAlive = req.headers["Connection"] == "keep-alive" ||
+                     (req.version == "HTTP/1.1" && req.headers["Connection"] != "close");
+}
+```
+
+### Advanced Error Handling
+
+```cpp
+// Comprehensive error handling with proper HTTP responses
+try {
+    // Request parsing with validation
+    if (!req.parse(requestData)) {
+        std::string badReq = "HTTP/1.1 400 Bad Request\r\n"
+                             "Connection: close\r\n"
+                             "Content-Length: 0\r\n\r\n";
+        send(clientSocket, badReq.data(), badReq.size(), MSG_NOSIGNAL);
+        break;
+    }
+} catch (const std::exception &e) {
+    std::cerr << "Client error: " << e.what() << std::endl;
+}
+```
+
+### Connection Management and Performance
+
+```cpp
+// Socket optimization for high performance
+int Server::initSocket(int port, int listenQueueSize) {
+    // Non-blocking socket with optimized settings
+    int sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    
+    // TCP optimizations
+    setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+    
+    // Buffer size optimization (1MB)
+    int bufsize = 1024 * 1024;
+    setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
+    setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
+}
+```
+
 ### Cookie Management and Session Handling
 
 ```cpp
@@ -750,6 +811,9 @@ Nerva/
 - `Response& setSignedCookie(name, value, secret, options)`: Set signed cookie
 - `std::optional<std::string> getSignedCookie(name, secret)`: Get signed cookie
 - `void removeCookie(name, path, domain, secure)`: Remove a cookie
+- `void handleClient(clientSocket)`: Enhanced client handling with timeout and keep-alive
+- `int initSocket(port, listenQueueSize)`: Optimized socket initialization
+- `void acceptConnections()`: Epoll-based connection acceptance
 
 ### Template Engine Features
 

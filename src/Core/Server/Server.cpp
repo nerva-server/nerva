@@ -20,6 +20,7 @@
 #include <sys/wait.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
+#include <poll.h>
 
 std::atomic<bool> shutdownServer{false};
 
@@ -217,21 +218,32 @@ void Server::handleClient(int clientSocket)
     activeConnections++;
     try
     {
-        std::vector<char> buffer(config.getInt("buffer_size"));
+        const size_t BUFFER_SIZE = config.getInt("buffer_size");
+        std::vector<char> buffer(BUFFER_SIZE);
         std::string requestData;
+        requestData.reserve(BUFFER_SIZE * 2);
+
+        struct timeval tv;
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
+        setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
         while (!shutdownServer)
         {
-            int valread = read(clientSocket, buffer.data(), buffer.size());
+            ssize_t valread = recv(clientSocket, buffer.data(), buffer.size(), 0);
 
             if (valread < 0)
             {
                 if (errno == EAGAIN || errno == EWOULDBLOCK)
                 {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    struct pollfd pfd = {clientSocket, POLLIN, 0};
+                    if (poll(&pfd, 1, 100) <= 0)
+                        break;
                     continue;
                 }
-                throw std::system_error(errno, std::system_category(), "read failed");
+                if (errno == ECONNRESET || errno == ETIMEDOUT)
+                    break;
+                throw std::system_error(errno, std::system_category(), "recv failed");
             }
             else if (valread == 0)
             {
@@ -241,97 +253,114 @@ void Server::handleClient(int clientSocket)
             requestData.append(buffer.data(), valread);
 
             size_t headerEnd = requestData.find("\r\n\r\n");
-            if (headerEnd != std::string::npos)
-            {
-                if (requestData.find("Content-Length:") != std::string::npos)
-                {
-                    size_t contentLengthPos = requestData.find("Content-Length:");
-                    size_t contentLengthEnd = requestData.find("\r\n", contentLengthPos);
-                    std::string contentLengthStr = requestData.substr(
-                        contentLengthPos + 15,
-                        contentLengthEnd - contentLengthPos - 15);
-                    contentLengthStr.erase(0, contentLengthStr.find_first_not_of(" \t"));
-                    contentLengthStr.erase(contentLengthStr.find_last_not_of(" \t") + 1);
+            if (headerEnd == std::string::npos)
+                continue;
 
-                    size_t contentLength = std::stoul(contentLengthStr);
-                    size_t bodyStart = headerEnd + 4;
-                    if (requestData.length() - bodyStart >= contentLength)
+            size_t contentLength = 0;
+            if (auto clPos = requestData.find("Content-Length:"); clPos != std::string::npos)
+            {
+                try
+                {
+                    size_t clEnd = requestData.find("\r\n", clPos);
+                    std::string clStr = requestData.substr(clPos + 15, clEnd - clPos - 15);
+                    contentLength = std::stoul(clStr);
+                }
+                catch (...)
+                {
+                    throw std::runtime_error("Invalid Content-Length");
+                }
+            }
+
+            if (requestData.size() < (headerEnd + 4 + contentLength))
+            {
+                continue;
+            }
+
+            Http::Request req;
+            if (!req.parse(requestData))
+            {
+                std::string badReq = "HTTP/1.1 400 Bad Request\r\n"
+                                     "Connection: close\r\n"
+                                     "Content-Length: 0\r\n\r\n";
+                send(clientSocket, badReq.data(), badReq.size(), MSG_NOSIGNAL);
+                break;
+            }
+
+            Http::Response res;
+            res._engine = _engine;
+            res.viewDir = keys["views"];
+
+            if (req.headers.find("Cookie") != req.headers.end())
+            {
+                std::string cookieHeader = req.headers["Cookie"];
+                size_t pos = 0;
+                while (pos < cookieHeader.length())
+                {
+                    pos = cookieHeader.find_first_not_of(" ;\t", pos);
+                    if (pos == std::string::npos)
+                        break;
+
+                    size_t eq_pos = cookieHeader.find('=', pos);
+                    if (eq_pos == std::string::npos || eq_pos <= pos)
                     {
                         break;
                     }
-                }
-                else
-                {
-                    break;
+
+                    size_t end_pos = cookieHeader.find(';', eq_pos);
+                    if (end_pos == std::string::npos)
+                    {
+                        end_pos = cookieHeader.length();
+                    }
+
+                    std::string name = cookieHeader.substr(pos, eq_pos - pos);
+                    std::string value = cookieHeader.substr(eq_pos + 1, end_pos - eq_pos - 1);
+
+                    auto trim = [](std::string &s)
+                    {
+                        size_t start = s.find_first_not_of(" \t");
+                        if (start == std::string::npos)
+                            return;
+                        size_t end = s.find_last_not_of(" \t");
+                        s = s.substr(start, end - start + 1);
+                    };
+
+                    trim(name);
+                    trim(value);
+
+                    res.incomingCookies[name] = value;
+
+                    pos = end_pos + 1;
                 }
             }
-        }
 
-        Http::Request req;
-        if (!req.parse(requestData))
-        {
-            std::cerr << "Failed to parse request.\n";
-            throw std::runtime_error("Failed to parse HTTP request");
-        }
+            this->Handle(req, res, []() {});
 
-        Http::Response res;
-        res._engine = _engine;
-        res.viewDir = keys["views"];
-
-        if (req.headers.find("Cookie") != req.headers.end())
-        {
-            std::string cookieHeader = req.headers["Cookie"];
-            size_t pos = 0;
-            while (pos < cookieHeader.length())
+            std::string response = res.toString();
+            if (send(clientSocket, response.data(), response.size(), MSG_NOSIGNAL) < 0)
             {
-                pos = cookieHeader.find_first_not_of(" ;\t", pos);
-                if (pos == std::string::npos)
-                    break;
-
-                size_t eq_pos = cookieHeader.find('=', pos);
-                if (eq_pos == std::string::npos || eq_pos <= pos)
-                {
-                    break;
-                }
-
-                size_t end_pos = cookieHeader.find(';', eq_pos);
-                if (end_pos == std::string::npos)
-                {
-                    end_pos = cookieHeader.length();
-                }
-
-                std::string name = cookieHeader.substr(pos, eq_pos - pos);
-                std::string value = cookieHeader.substr(eq_pos + 1, end_pos - eq_pos - 1);
-
-                auto trim = [](std::string &s)
-                {
-                    size_t start = s.find_first_not_of(" \t");
-                    if (start == std::string::npos)
-                        return;
-                    size_t end = s.find_last_not_of(" \t");
-                    s = s.substr(start, end - start + 1);
-                };
-
-                trim(name);
-                trim(value);
-
-                res.incomingCookies[name] = value;
-                
-                pos = end_pos + 1;
+                throw std::system_error(errno, std::system_category(), "send failed");
             }
-        }
 
-        this->Handle(req, res, []() {});
+            bool keepAlive = req.headers["Connection"] == "keep-alive" ||
+                             (req.version == "HTTP/1.1" && req.headers["Connection"] != "close");
 
-        std::string responseData = res.toString();
-        if (send(clientSocket, responseData.c_str(), responseData.size(), MSG_NOSIGNAL) < 0)
-        {
-            throw std::system_error(errno, std::system_category(), "send failed");
+            if (!keepAlive)
+                break;
+
+            size_t requestEnd = headerEnd + 4 + contentLength;
+            if (requestData.size() > requestEnd)
+            {
+                requestData = requestData.substr(requestEnd);
+            }
+            else
+            {
+                requestData.clear();
+            }
         }
     }
     catch (const std::exception &e)
     {
-        std::cerr << "Client handling error: " << e.what() << "\n";
+        std::cerr << "Client error: " << e.what() << std::endl;
     }
 
     close(clientSocket);

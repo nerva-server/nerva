@@ -39,6 +39,14 @@ bool Http::Request::parse(const std::string &rawRequest)
         if (!parseMultipartFormData())
             return false;
     }
+    else if (isUrlEncodedFormData())
+    {
+        parseUrlEncodedFormData();
+    }
+    else if (isJsonData())
+    {
+        parseJsonData();
+    }
 
     parseQueryParameters();
 
@@ -259,4 +267,119 @@ bool Http::Request::matchRouteAndExtractParams(const std::string &routePattern)
         }
     }
     return true;
+}
+
+bool Http::Request::isUrlEncodedFormData() const
+{
+    auto it = headers.find("Content-Type");
+    return it != headers.end() &&
+           it->second.find("application/x-www-form-urlencoded") != std::string::npos;
+}
+
+void Http::Request::parseUrlEncodedFormData()
+{
+    std::string body(raw_data.begin(), raw_data.end());
+    size_t start = 0;
+    while (start < body.size())
+    {
+        size_t end = body.find('&', start);
+        if (end == std::string::npos)
+            end = body.size();
+
+        size_t eq = body.find('=', start);
+        if (eq != std::string::npos && eq < end)
+        {
+            std::string key = body.substr(start, eq - start);
+            std::string value = body.substr(eq + 1, end - eq - 1);
+            params[key] = urlDecode(value);
+        }
+        else
+        {
+            std::string key = body.substr(start, end - start);
+            params[key] = "";
+        }
+        start = end + 1;
+    }
+}
+
+std::string Http::Request::urlDecode(const std::string &str)
+{
+    std::string result;
+    result.reserve(str.size());
+    for (size_t i = 0; i < str.size(); ++i)
+    {
+        if (str[i] == '+')
+        {
+            result += ' ';
+        }
+        else if (str[i] == '%' && i + 2 < str.size())
+        {
+            int value;
+            std::istringstream iss(str.substr(i + 1, 2));
+            if (iss >> std::hex >> value)
+            {
+                result += static_cast<char>(value);
+                i += 2;
+            }
+            else
+            {
+                result += str[i];
+            }
+        }
+        else
+        {
+            result += str[i];
+        }
+    }
+    return result;
+}
+
+bool Http::Request::hasParam(const std::string &key) const
+{
+    return params.find(key) != params.end();
+}
+
+bool Http::Request::hasQuery(const std::string &key) const
+{
+    return query.find(key) != query.end();
+}
+
+bool Http::Request::hasHeader(const std::string &key) const
+{
+    return headers.find(key) != headers.end();
+}
+
+bool Http::Request::hasFormData(const std::string &key) const
+{
+    return formData.find(key) != formData.end();
+}
+
+bool Http::Request::isJsonData() const
+{
+    auto it = headers.find("Content-Type");
+    return it != headers.end() &&
+           it->second.find("application/json") != std::string::npos;
+}
+
+void Http::Request::parseJsonData()
+{
+    try
+    {
+        jsonBody = nlohmann::json::parse(raw_data);
+        has_json_body = true;
+    }
+    catch (...)
+    {
+        has_json_body = false;
+    }
+}
+
+const nlohmann::json &Http::Request::getJson() const
+{
+    return jsonBody;
+}
+
+bool Http::Request::hasJsonBody() const
+{
+    return has_json_body;
 }

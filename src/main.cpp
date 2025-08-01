@@ -70,6 +70,8 @@ int main()
     server.Post("/login", {}, [](const Http::Request &req, Http::Response &res) {
         std::string username = req.getFormData("username").value;
         std::string password = req.getFormData("password").value;
+
+        std::cout << username << " a "  << password;
         
         // Check credentials
         if (users.find(username) != users.end() && users[username] == password) {

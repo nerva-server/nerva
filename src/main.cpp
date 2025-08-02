@@ -36,6 +36,10 @@ int main()
     server.Static("/static", "./public");
 
     RateLimiter rateLimiter;
+
+    rateLimiter.Config.windowMs = 60 * 1000;
+    rateLimiter.Config.limit = 100;
+
     server.Use("/*", rateLimiter);
 
     Nerva::Engine *engine = new Nerva::Engine();

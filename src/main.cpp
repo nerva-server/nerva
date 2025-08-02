@@ -18,12 +18,12 @@
 #include "ViewEngine/NervaEngine.hpp"
 
 #include "RateLimiter.hpp"
+#include "Cors.hpp"
 
 std::map<std::string, std::string> users = {
     {"admin", "password123"},
     {"user1", "password456"},
-    {"demo", "demo123"}
-};
+    {"demo", "demo123"}};
 
 std::map<std::string, std::string> sessions;
 
@@ -42,28 +42,36 @@ int main()
 
     server.Use("/*", rateLimiter);
 
+    CorsConfig config;
+    Cors cors = Cors(config);
+
+    cors.setPolicy(CorsPolicy::BLOCK_ALL);
+
+    server.Use("/*", cors);
+
     Nerva::Engine *engine = new Nerva::Engine();
     engine->setViewsDirectory("./views");
     server.Set("view engine", engine);
 
-    server.Get("/", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         auto sessionId = res.getCookie("session_id");
         if (sessionId && sessions.find(*sessionId) != sessions.end()) {
             res.TemporaryRedirect("/dashboard");
         } else {
             res.TemporaryRedirect("/login");
-        }
-    });
+        } });
 
-    server.Get("/login", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/login", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         nlohmann::json data = {
             {"pageTitle", "Login - Nerva HTTP Server"},
             {"error", ""}
         };
-        res.Render("login", data);
-    });
+        res.Render("login", data); });
 
-    server.Post("/login", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Post("/login", {}, [](const Http::Request &req, Http::Response &res, auto next)
+                {
         std::string username = req.getFormData("username").value;
         std::string password = req.getFormData("password").value;
 
@@ -85,10 +93,10 @@ int main()
                 {"error", "Invalid username or password"}
             };
             res.Render("login", data);
-        }
-    });
+        } });
 
-    server.Get("/dashboard", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/dashboard", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         auto sessionId = res.getCookie("session_id");
         if (!sessionId || sessions.find(*sessionId) == sessions.end()) {
             res.TemporaryRedirect("/login");
@@ -102,19 +110,19 @@ int main()
             {"sessionId", *sessionId},
             {"loginTime", std::to_string(std::time(nullptr))}
         };
-        res.Render("dashboard", data);
-    });
+        res.Render("dashboard", data); });
 
-    server.Get("/logout", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/logout", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         auto sessionId = res.getCookie("session_id");
         if (sessionId) {
             sessions.erase(*sessionId);
             res.removeCookie("session_id");
         }
-        res.TemporaryRedirect("/login");
-    });
+        res.TemporaryRedirect("/login"); });
 
-    server.Get("/cookies", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/cookies", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         Http::CookieOptions basicOpts;
         basicOpts.maxAge = std::chrono::hours(1);
         res.setCookie("basic_cookie", "Hello World", basicOpts);
@@ -145,10 +153,10 @@ int main()
             data["allCookies"][name] = value;
         }
         
-        res.Render("cookies", data);
-    });
+        res.Render("cookies", data); });
 
-    server.Get("/cookie-manager", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/cookie-manager", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         std::string action = req.getQuery("action");
         std::string name = req.getQuery("name");
         std::string value = req.getQuery("value");
@@ -161,91 +169,84 @@ int main()
             res.removeCookie(name);
         }
         
-        res.TemporaryRedirect("/cookies");
-    });
+        res.TemporaryRedirect("/cookies"); });
 
-    server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/test/:id", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         Http::CookieOptions secureOpts;
         res.setSignedCookie("secure", "ITS VERY SAFE", "123", secureOpts);
-        res << 200 << "Test ID: " << req.getParam("id") << " Cookie: " << res.getSignedCookie("secure", "123").value_or("");
-    });
+        res << 200 << "Test ID: " << req.getParam("id") << " Cookie: " << res.getSignedCookie("secure", "123").value_or(""); });
 
-    server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Post("/upload", {}, [](const Http::Request &req, Http::Response &res, auto next)
+                {
         auto fileData = req.getFormData("file");
         if (fileData.isFile && !fileData.file.empty()) {
             fileData.file.save("./public/" + fileData.filename);
             res << 200 << "File uploaded successfully: " << fileData.filename;
         } else {
             res << 400 << "File upload failed.";
-        }
-    });
+        } });
 
-    server.Post("/json", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Post("/json", {}, [](const Http::Request &req, Http::Response &res, auto next)
+                {
         const std::string jsonResponse = R"({"message": "JSON POST successful!"})";
-        res << 200 << Json::ParseAndReturnBody(jsonResponse);
-    });
+        res << 200 << Json::ParseAndReturnBody(jsonResponse); });
 
-    server.Get("/image-test", {}, [](const Http::Request &req, Http::Response &res, auto next) {
-        res.SendFile("./public/a.jpg");
-    });
+    server.Get("/image-test", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               { res.SendFile("./public/a.jpg"); });
 
-    Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next) {
+    Middleware authMiddleware = Middleware([](Http::Request &req, Http::Response &res, auto next)
+                                           {
         std::string token = req.getQuery("token");
         if (token != "123") {
             res << 401 << "Unauthorized";
             return;
         }
-        next();
-    });
+        next(); });
 
-    server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res, auto next) {
-        res << 200 << Json::ParseAndReturnBody(R"({"message": "Protected area - Welcome!"})");
-    });
+    server["GET"].Use("/protected", {authMiddleware}, [](const Http::Request &req, Http::Response &res, auto next)
+                      { res << 200 << Json::ParseAndReturnBody(R"({"message": "Protected area - Welcome!"})"); });
 
-    server["GET"].Use("/redirect", {authMiddleware}, [](const Http::Request &req, Http::Response &res, auto next) {
-        res.MovedRedirect("/home");
-    });
+    server["GET"].Use("/redirect", {authMiddleware}, [](const Http::Request &req, Http::Response &res, auto next)
+                      { res.MovedRedirect("/home"); });
 
-    server["GET"].Register("/register-test").Use(authMiddleware).Then([](const Http::Request &req, Http::Response &res, auto next) {
-        res << 200 << Json::ParseAndReturnBody(R"({"message": "Register test successful!"})");
-    });
+    server["GET"].Register("/register-test").Use(authMiddleware).Then([](const Http::Request &req, Http::Response &res, auto next)
+                                                                      { res << 200 << Json::ParseAndReturnBody(R"({"message": "Register test successful!"})"); });
 
     server.Get("/secure")
         .Use(authMiddleware)
-        .Then([](const Http::Request &req, Http::Response &res, auto next) {
-            res << 200 << Json::ParseAndReturnBody(R"({"message": "Secure area", "access": "granted"})");
-        });
+        .Then([](const Http::Request &req, Http::Response &res, auto next)
+              { res << 200 << Json::ParseAndReturnBody(R"({"message": "Secure area", "access": "granted"})"); });
 
     Router apiRouter;
-    apiRouter.Get("/users", {}, [](const Http::Request &req, Http::Response &res, auto next) {
-        res << 200 << "User list";
-    });
+    apiRouter.Get("/users", {}, [](const Http::Request &req, Http::Response &res, auto next)
+                  { res << 200 << "User list"; });
 
-    apiRouter.Get("/users/:id", {}, [](const Http::Request &req, Http::Response &res, auto next) {
-        res << 200 << "User ID: " << req.getParam("id");
-    });
-    
+    apiRouter.Get("/users/:id", {}, [](const Http::Request &req, Http::Response &res, auto next)
+                  { res << 200 << "User ID: " << req.getParam("id"); });
+
     server.Use("/api", apiRouter);
 
-    server.Group("/api/v1").Then([](Router &r) {
+    server.Group("/api/v1").Then([](Router &r)
+                                 {
         r.Get("/users").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "API v1 - Users";
         });
         r.Get("/posts").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "API v1 - Posts";
-        });
-    });
+        }); });
 
-    server.Group("/admin").Then([](Router &r) {
+    server.Group("/admin").Then([](Router &r)
+                                {
         r.Get("/dashboard").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "Admin Dashboard";
         });
         r.Get("/settings").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "Admin Settings";
-        });
-    });
+        }); });
 
-    server.Group("/blog").Then([](Router &r) {
+    server.Group("/blog").Then([](Router &r)
+                               {
         r.Get("/posts").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "Blog Posts";
         });
@@ -254,10 +255,10 @@ int main()
         });
         r.Get("/categories").Then([](const Http::Request &req, Http::Response &res, auto next) {
             res << 200 << "Blog Categories";
-        });
-    });
+        }); });
 
-    server.Get("/products").Then([](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/products").Then([](const Http::Request &req, Http::Response &res, auto next)
+                                 {
         nlohmann::json data = {
             {"pageTitle", "Super Products"},
             {"showPromo", true},
@@ -274,26 +275,26 @@ int main()
             }},
             {"features", {"Fast Delivery", "Free Returns", "Original Product Guarantee"}}
         };
-        res.Render("productPage", data);
-    });
+        res.Render("productPage", data); });
 
-    server.Get("/middleware-demo", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/middleware-demo", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         std::cout << "First middleware: Logging request to " << req.path << std::endl;
-        next(); 
-    });
+        next(); });
 
-    server.Get("/middleware-demo", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/middleware-demo", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         std::cout << "Second middleware: Adding custom header" << std::endl;
         res.setHeader("X-Custom-Header", "Nerva-Server");
-        next();
-    });
+        next(); });
 
-    server.Get("/middleware-demo", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/middleware-demo", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         std::cout << "Final handler: Sending response" << std::endl;
-        res << 200 << "Middleware demo completed! Check console for logs.";
-    });
+        res << 200 << "Middleware demo completed! Check console for logs."; });
 
-    server.Get("/auth-demo", {}, [](const Http::Request &req, Http::Response &res, auto next) {
+    server.Get("/auth-demo", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               {
         std::string token = req.getQuery("token");
         if (token == "secret123") {
             std::cout << "Authentication successful" << std::endl;
@@ -301,22 +302,18 @@ int main()
         } else {
             std::cout << "Authentication failed" << std::endl;
             res << 401 << "Unauthorized - Invalid token";
-        }
-    });
+        } });
 
-    server.Get("/auth-demo", {}, [](const Http::Request &req, Http::Response &res, auto next) {
-        res << 200 << "Welcome to protected area! Token was valid.";
-    });
+    server.Get("/auth-demo", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               { res << 200 << "Welcome to protected area! Token was valid."; });
 
-    server.Get("/myip", {}, [](const Http::Request &req, Http::Response &res, auto next){
-        res << 200 << "Your ip is: " << req.ip << "\nYour ipv6 is: " << req.ipv6;
-    });
+    server.Get("/myip", {}, [](const Http::Request &req, Http::Response &res, auto next)
+               { res << 200 << "Your ip is: " << req.ip << "\nYour ipv6 is: " << req.ipv6; });
 
     // Catch-all route for 404 - must be the last route
-    server.Get("/*").Then([](const Http::Request &req, Http::Response &res, auto next) {
-        res.Render("notFound", nlohmann::json{});
-    });
-    
+    server.Get("/*").Then([](const Http::Request &req, Http::Response &res, auto next)
+                          { res.Render("notFound", nlohmann::json{}); });
+
     server.Start();
     server.Stop();
     return 0;

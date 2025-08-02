@@ -170,15 +170,21 @@ void Router::Handle(Http::Request &req, Http::Response &res, std::function<void(
             const std::string &handlerPath = handlerPair.first;
             IHandler *handler = handlerPair.second.get();
 
-            if (req.path == handlerPath ||
+            if (handlerPath == "/*" ||
+                req.path == handlerPath ||
                 (req.path.length() > handlerPath.length() &&
                  req.path.substr(0, handlerPath.length()) == handlerPath &&
                  req.path[handlerPath.length()] == '/'))
             {
                 std::string originalPath = req.path;
-                req.path = req.path.substr(handlerPath.length());
-                if (req.path.empty())
+                
+                if (handlerPath == "/*") {
                     req.path = "/";
+                } else {
+                    req.path = req.path.substr(handlerPath.length());
+                    if (req.path.empty())
+                        req.path = "/";
+                }
 
                 handler->Handle(req, res, [&, originalPath]()
                                 {

@@ -17,6 +17,8 @@
 #include "Json.hpp"
 #include "ViewEngine/NervaEngine.hpp"
 
+#include "RateLimiter.hpp"
+
 std::map<std::string, std::string> users = {
     {"admin", "password123"},
     {"user1", "password456"},
@@ -32,6 +34,9 @@ int main()
     std::cout << "Server listening on port " << 8080 << "...\n";
 
     server.Static("/static", "./public");
+
+    RateLimiter rateLimiter;
+    server.Use("/*", rateLimiter);
 
     Nerva::Engine *engine = new Nerva::Engine();
     engine->setViewsDirectory("./views");
@@ -299,11 +304,15 @@ int main()
         res << 200 << "Welcome to protected area! Token was valid.";
     });
 
+    server.Get("/myip", {}, [](const Http::Request &req, Http::Response &res, auto next){
+        res << 200 << "Your ip is: " << req.ip << "\nYour ipv6 is: " << req.ipv6;
+    });
+
     // Catch-all route for 404 - must be the last route
     server.Get("/*").Then([](const Http::Request &req, Http::Response &res, auto next) {
         res.Render("notFound", nlohmann::json{});
     });
-
+    
     server.Start();
     server.Stop();
     return 0;

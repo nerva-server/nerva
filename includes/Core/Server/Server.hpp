@@ -40,6 +40,11 @@ private:
 
     std::thread acceptThread;
 
+    struct sockaddr_in clientAddress;
+    struct sockaddr_in6 clientAddress6;
+
+    int addressFamily;
+
     ThreadSafeQueue socketQueue;
     std::atomic<int> activeConnections;
 

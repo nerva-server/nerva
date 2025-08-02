@@ -162,10 +162,10 @@ void Server::acceptConnections()
             if (events[i].data.fd == serverSocket)
             {
                 int clientSocket;
-                struct sockaddr_in clientAddress;
-                socklen_t clientAddrLen = sizeof(clientAddress);
+                sockaddr_storage clientAddr;
+                socklen_t clientAddrLen = sizeof(clientAddr);
 
-                clientSocket = accept4(serverSocket, (struct sockaddr *)&clientAddress,
+                clientSocket = accept4(serverSocket, (struct sockaddr *)&clientAddr,
                                        &clientAddrLen, SOCK_NONBLOCK);
 
                 if (clientSocket < 0)
@@ -179,6 +179,17 @@ void Server::acceptConnections()
                     }
                     perror("accept4");
                     continue;
+                }
+
+                addressFamily = clientAddr.ss_family;
+
+                if (addressFamily == AF_INET)
+                {
+                    memcpy(&clientAddress, &clientAddr, sizeof(clientAddress));
+                }
+                else if (addressFamily == AF_INET6)
+                {
+                    memcpy(&clientAddress6, &clientAddr, sizeof(clientAddress6));
                 }
 
                 if (activeConnections >= config.getInt("max_connections"))
@@ -289,6 +300,27 @@ void Server::handleClient(int clientSocket)
                 continue;
             }
 
+            char ip[INET_ADDRSTRLEN];
+            char ipv6[INET6_ADDRSTRLEN];
+
+            if (clientAddress.sin_family == AF_INET)
+            {
+                sockaddr_in *s = reinterpret_cast<sockaddr_in *>(&clientAddress);
+                inet_ntop(AF_INET, &s->sin_addr, ip, INET_ADDRSTRLEN);
+
+                snprintf(ipv6, INET6_ADDRSTRLEN, "::ffff:%s", ip);
+            }
+            else if (clientAddress.sin_family == AF_INET6)
+            {
+                sockaddr_in6 *s = reinterpret_cast<sockaddr_in6 *>(&clientAddress);
+                inet_ntop(AF_INET6, &s->sin6_addr, ipv6, INET6_ADDRSTRLEN);
+
+                if (IN6_IS_ADDR_V4MAPPED(&s->sin6_addr))
+                {
+                    inet_ntop(AF_INET, (void *)&s->sin6_addr.s6_addr[12], ip, INET_ADDRSTRLEN);
+                }
+            }
+
             Http::Request req;
             if (!req.parse(requestData))
             {
@@ -298,6 +330,9 @@ void Server::handleClient(int clientSocket)
                 send(clientSocket, badReq.data(), badReq.size(), MSG_NOSIGNAL);
                 break;
             }
+
+            req.ip = ip;
+            req.ipv6 = ipv6;
 
             Http::Response res;
             res._engine = _engine;

@@ -26,7 +26,7 @@ namespace Http
             bool isFile;
         };
 
-        Request()
+        Request(): headers()
         {
             headers.set_empty_key("__EMPTY__");
             headers.set_deleted_key("__DELETED__");
@@ -35,6 +35,8 @@ namespace Http
         std::string method;
         std::string path;
         std::string version;
+        std::string ip;
+        std::string ipv6;
         std::vector<char> raw_data;
         google::dense_hash_map<std::string, std::string> headers;
         std::unordered_map<std::string, FormData> formData;

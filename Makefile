@@ -1,23 +1,32 @@
 CXX = clang++
-INCLUDE_DIRS := $(shell find includes -type d)
+INCLUDE_DIRS := $(shell find includes -type d) $(shell find libs -name includes -type d)
 CXXFLAGS += $(patsubst %,-I%,$(INCLUDE_DIRS))
 LDFLAGS = -lsimdjson -lssl -lcrypto
 
 SRC_DIR = src
+LIBS_DIR = libs
 BUILD_DIR = build
 BIN = server
 
 SRCS := $(shell find $(SRC_DIR) -name '*.cpp')
-OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
+LIB_SRCS := $(shell find $(LIBS_DIR) -name '*.cpp')
 
-LIB_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/lib/%.o,$(SRCS))
+OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
+LIB_OBJS := $(patsubst $(LIBS_DIR)/%/src/%.cpp,$(BUILD_DIR)/libs/%/%.o,$(LIB_SRCS))
+ALL_OBJS := $(OBJS) $(LIB_OBJS)
+
+SHARED_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/lib/%.o,$(SRCS))
 LIB_NAME = $(BUILD_DIR)/lib/nerva.so
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(BIN): $(OBJS)
+$(BUILD_DIR)/libs/%.o: $(LIBS_DIR)/%/src/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BIN): $(ALL_OBJS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 .PHONY: clean run lib install
@@ -32,7 +41,7 @@ $(BUILD_DIR)/lib/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -fPIC -c $< -o $@
 
-lib: $(LIB_OBJS)
+lib: $(SHARED_OBJS)
 	$(CXX) -shared -o $(LIB_NAME) $^ $(LDFLAGS)
 
 install: lib

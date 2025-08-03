@@ -417,6 +417,20 @@ void Server::handleClient(int clientSocket)
 
 void Server::Start()
 {
+    bool singleThreaded = config.getBool("single_threaded");
+    
+    if (singleThreaded)
+    {
+        serverSocket = initSocket(config.getInt("port"), config.getInt("accept_queue_size"));
+        if (serverSocket < 0)
+        {
+            std::cerr << "Failed to initialize server socket. Exiting.\n";
+            return;
+        }
+        StartSingleThreaded();
+        return;
+    }
+
     int cpuCount = config.getInt("cluster_thread");
     if (cpuCount == 0)
         cpuCount = 4;
@@ -478,6 +492,116 @@ void Server::StartWorker()
         if (t.joinable())
             t.join();
     }
+}
+
+void Server::StartSingleThreaded()
+{
+    int epollFd = epoll_create1(0);
+    if (epollFd == -1)
+    {
+        perror("epoll_create1");
+        return;
+    }
+    
+    struct epoll_event event;
+    event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+    event.data.fd = serverSocket;
+    if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serverSocket, &event) == -1)
+    {
+        perror("epoll_ctl");
+        close(epollFd);
+        return;
+    }
+
+    struct epoll_event events[config.getInt("max_events")];
+
+    while (!shutdownServer)
+    {
+        int numEvents = epoll_wait(epollFd, events, config.getInt("max_events"), 0);
+        if (numEvents == -1)
+        {
+            if (errno == EINTR)
+                continue;
+            perror("epoll_wait");
+            break;
+        }
+
+        for (int i = 0; i < numEvents; ++i)
+        {
+            if (events[i].data.fd == serverSocket)
+            {
+                int clientSocket;
+                sockaddr_storage clientAddr;
+                socklen_t clientAddrLen = sizeof(clientAddr);
+
+                clientSocket = accept4(serverSocket, (struct sockaddr *)&clientAddr,
+                                       &clientAddrLen, SOCK_NONBLOCK);
+
+                if (clientSocket < 0)
+                {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK)
+                        continue;
+                    if (errno == EMFILE || errno == ENFILE)
+                    {
+                        std::cerr << "File descriptor limit reached\n";
+                        continue;
+                    }
+                    perror("accept4");
+                    continue;
+                }
+
+                addressFamily = clientAddr.ss_family;
+
+                if (addressFamily == AF_INET)
+                {
+                    memcpy(&clientAddress, &clientAddr, sizeof(clientAddress));
+                }
+                else if (addressFamily == AF_INET6)
+                {
+                    memcpy(&clientAddress6, &clientAddr, sizeof(clientAddress6));
+                }
+
+                if (activeConnections >= config.getInt("max_connections"))
+                {
+                    close(clientSocket);
+                    continue;
+                }
+
+                int flag = 1;
+                if (setsockopt(clientSocket, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)) < 0)
+                {
+                    perror("setsockopt(TCP_NODELAY)");
+                }
+
+                event.events = EPOLLIN | EPOLLET;
+                event.data.fd = clientSocket;
+                if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientSocket, &event) == -1)
+                {
+                    perror("epoll_ctl: clientSocket");
+                    close(clientSocket);
+                    continue;
+                }
+            }
+            else
+            {
+                int clientSocket = events[i].data.fd;
+                if (events[i].events & EPOLLERR || events[i].events & EPOLLHUP)
+                {
+                    epoll_ctl(epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
+                    close(clientSocket);
+                    activeConnections--;
+                    continue;
+                }
+
+                handleClient(clientSocket);
+                epoll_ctl(epollFd, EPOLL_CTL_DEL, clientSocket, nullptr);
+            }
+        }
+    }
+
+    close(epollFd);
+    close(serverSocket);
+    std::cout << "Single-threaded server shut down.\n";
 }
 
 void Server::Stop()

@@ -54,6 +54,7 @@ private:
     void acceptConnections();
     void handleClient(int clientSocket);
     void StartWorker();
+    void StartSingleThreaded();
     static int SetNonBlocking(int fd);
 };
 

@@ -71,3 +71,15 @@ std::string ConfigParser::getString(const std::string &key, const std::string &d
         return defaultValue;
     return it->second;
 }
+
+bool ConfigParser::getBool(const std::string &key, bool defaultValue) const
+{
+    auto it = configValues.find(key);
+    if (it == configValues.end())
+        return defaultValue;
+    
+    std::string value = it->second;
+    std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+    
+    return value == "true" || value == "1" || value == "yes" || value == "on";
+}

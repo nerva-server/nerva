@@ -12,6 +12,7 @@ public:
 
     int getInt(const std::string &key, int defaultValue = 0) const;
     std::string getString(const std::string &key, const std::string &defaultValue = "") const;
+    bool getBool(const std::string &key, bool defaultValue = false) const;
 
 private:
     std::unordered_map<std::string, std::string> configValues;

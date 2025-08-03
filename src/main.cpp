@@ -17,9 +17,6 @@
 #include "Json.hpp"
 #include "ViewEngine/NervaEngine.hpp"
 
-#include "RateLimiter.hpp"
-#include "Cors.hpp"
-
 std::map<std::string, std::string> users = {
     {"admin", "password123"},
     {"user1", "password456"},
@@ -34,20 +31,6 @@ int main()
     std::cout << "Server listening on port " << 8080 << "...\n";
 
     server.Static("/static", "./public");
-
-    RateLimiter rateLimiter;
-
-    rateLimiter.Config.windowMs = 60 * 1000;
-    rateLimiter.Config.limit = 100;
-
-    server.Use("/*", rateLimiter);
-
-    CorsConfig config;
-    Cors cors = Cors(config);
-
-    cors.setPolicy(CorsPolicy::BLOCK_ALL);
-
-    server.Use("/*", cors);
 
     Nerva::Engine *engine = new Nerva::Engine();
     engine->setViewsDirectory("./views");
